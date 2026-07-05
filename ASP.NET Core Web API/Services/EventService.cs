@@ -32,8 +32,8 @@ public class EventService:IEventService
         
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
-        existingEvent.StartAt=updatedEvent.StartAt;
-        existingEvent.EndAt=updatedEvent.EndAt;
+        existingEvent.StartDate=updatedEvent.StartDate;
+        existingEvent.EndDate=updatedEvent.EndDate;
         
         return existingEvent;
     }
