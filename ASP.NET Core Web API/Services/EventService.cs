@@ -5,7 +5,7 @@ namespace ASP.NET_Core_Web_API.Services;
 
 public class EventService:IEventService
 {
-    private static List<Event> Events { get; set; } = [];
+    private  List<Event> Events { get; set; } = [];
 
     public List<Event>  GetEvents()
     {
@@ -25,15 +25,15 @@ public class EventService:IEventService
         return newEvent;
     }
 
-    public Event UpdateEvent(Event updatedEvent)
+    public Event? UpdateEvent(Event updatedEvent)
     {
         var existingEvent  = Events.FirstOrDefault(e => e.Id == updatedEvent.Id);
         if (existingEvent == null) return null; 
         
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
-        existingEvent.StartDate=updatedEvent.StartDate;
-        existingEvent.EndDate=updatedEvent.EndDate;
+        existingEvent.StartAt=updatedEvent.StartAt;
+        existingEvent.EndAt=updatedEvent.EndAt;
         
         return existingEvent;
     }
