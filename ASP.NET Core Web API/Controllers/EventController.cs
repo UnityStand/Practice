@@ -5,20 +5,20 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ASP.NET_Core_Web_API.Controllers;
 [ApiController]
-[Route("api/[controller]")]
+[Route("events")]
 public class EventController(IEventService eventService) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<List<Event>>  GetEvents()
+    public ActionResult<List<Event>>  GetEvents(string? title, DateTime? from, DateTime? to)    
     {
-        return eventService.GetEvents();
+        return eventService.GetEvents(title, from, to);
     }
 
     [HttpGet("{eventId:int}")]
     public ActionResult<Event> GetEvent(int eventId)
     {
         var ev = eventService.GetEventById(eventId);    
-        return ev is null ? Problem(statusCode: StatusCodes.Status404NotFound, title:"Event not Found"): Ok(ev);    
+        return  Ok(ev);    
     }
 
     [HttpPost]
@@ -47,14 +47,14 @@ public class EventController(IEventService eventService) : ControllerBase
         };
         updatedEvent.Id = eventId;    
         var result = eventService.UpdateEvent(updatedEvent);                                                                            
-        return result is null ? Problem(statusCode: StatusCodes.Status404NotFound, title:"Event not Found") : Ok(result);   
+        return Ok(result);   
     }
 
     [HttpDelete("{eventId:int}")]  
     public IActionResult DeleteEvent(int eventId)
     {
         var result = eventService.DeleteEvent(eventId);
-        return result is false ? Problem(statusCode: StatusCodes.Status404NotFound, title:"Event not Found") : Ok(result);
+        return  NoContent();
     }
     
 }

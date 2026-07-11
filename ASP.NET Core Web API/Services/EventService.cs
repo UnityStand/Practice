@@ -1,5 +1,5 @@
-﻿using ASP.NET_Core_Web_API.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using ASP.NET_Core_Web_API.Exceptions;
+using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
@@ -7,16 +7,24 @@ public class EventService:IEventService
 {
     private  List<Event> Events { get; set; } = [];
 
-    public List<Event>  GetEvents()
+    public List<Event>  GetEvents(string? title, DateTime? from, DateTime? to)
     {
-        return Events;
+        var query = Events.AsEnumerable(); 
+        if (!string.IsNullOrWhiteSpace(title))
+            query = query.Where(e => e.Title.Contains(title,StringComparison.OrdinalIgnoreCase));
+        if (from != null)
+            query = query.Where(e => e.StartAt >= from);
+        if (to != null)
+            query = query.Where(e => e.EndAt <= to);
+        return query.ToList(); 
     }
 
-    public Event? GetEventById(int id)
+    public Event GetEventById(int id)
     {
-        //  FirstOrDefault вернёт null, если события с таким id нет — контроллер это использует для 404. 
-        return Events.FirstOrDefault(e => e.Id == id);
+       var result = Events.FirstOrDefault(e => e.Id == id);
+       return result ?? throw new NotFoundException($"Событие с id {id} не найдено");
     }
+
 
     public Event CreateEvent(Event newEvent)
     {   
@@ -25,10 +33,10 @@ public class EventService:IEventService
         return newEvent;
     }
 
-    public Event? UpdateEvent(Event updatedEvent)
+    public Event UpdateEvent(Event updatedEvent)
     {
         var existingEvent  = Events.FirstOrDefault(e => e.Id == updatedEvent.Id);
-        if (existingEvent == null) return null; 
+        if (existingEvent == null) throw new NotFoundException($"Событие с id {updatedEvent.Id } не найдено"); 
         
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
@@ -41,7 +49,7 @@ public class EventService:IEventService
     public bool DeleteEvent(int id)
     {
         var existingEvent = Events.FirstOrDefault(e => e.Id == id);
-        if (existingEvent == null) return false;
+        if (existingEvent == null) throw new NotFoundException($"Событие с id {id} не найдено");
         Events.Remove(existingEvent);
         return true;
     }

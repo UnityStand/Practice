@@ -1,3 +1,4 @@
+using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Services;
 
 
@@ -11,6 +12,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<IEventService, EventService>();
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();   
 
 var app = builder.Build();
 
