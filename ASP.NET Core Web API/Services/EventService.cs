@@ -8,6 +8,14 @@ public class EventService:IEventService
 {
     private  List<Event> Events { get; set; } = [];
 
+    private Event FindEventOrThrow(int id)
+    {
+        var result = Events.FirstOrDefault(x => x.Id == id);    
+        if (result == null) throw new NotFoundException($"Событие с id {id} не найдено");
+        
+        return result;
+    }
+
     public PaginatedResult<Event>  GetEvents(string? title, DateTime? from, DateTime? to, int page =1 ,int pageSize = 10 )
     {
         var query = Events.AsEnumerable(); 
@@ -30,8 +38,8 @@ public class EventService:IEventService
 
     public Event GetEventById(int id)
     {
-       var result = Events.FirstOrDefault(e => e.Id == id);
-       return result ?? throw new NotFoundException($"Событие с id {id} не найдено");
+       var result =  FindEventOrThrow(id);
+       return result;
     }
 
 
@@ -44,8 +52,8 @@ public class EventService:IEventService
 
     public Event UpdateEvent(Event updatedEvent)
     {
-        var existingEvent  = Events.FirstOrDefault(e => e.Id == updatedEvent.Id);
-        if (existingEvent == null) throw new NotFoundException($"Событие с id {updatedEvent.Id } не найдено"); 
+        var existingEvent  =  FindEventOrThrow(updatedEvent.Id);
+
         
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
@@ -57,8 +65,7 @@ public class EventService:IEventService
 
     public bool DeleteEvent(int id)
     {
-        var existingEvent = Events.FirstOrDefault(e => e.Id == id);
-        if (existingEvent == null) throw new NotFoundException($"Событие с id {id} не найдено");
+        var existingEvent = FindEventOrThrow(id);
         Events.Remove(existingEvent);
         return true;
     }
