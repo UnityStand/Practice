@@ -7,18 +7,18 @@ namespace ASP.NET_Core_Web_API.Tests;
 
 public class EventServiceTests
 {
-    private static Event CreateEvent(                                                                                                                   
-        string title = "Test Event",                                                                                                                    
-        DateTime? startAt = null,                                                                                                                       
-        DateTime? endAt = null)                                                                                                                         
-    {                                                                                                                                                   
-        return new Event                                                                                                                                
-        {                                                                                                                                               
-            Title = title,                                                                                                                              
-            StartAt = startAt ?? DateTime.UtcNow,                                                                                                       
-            EndAt = endAt ?? DateTime.UtcNow.AddHours(2)                                                                                                
-        };                                                                                                                                              
-    }  
+    private static Event CreateEvent(
+        string title = "Test Event",
+        DateTime? startAt = null,
+        DateTime? endAt = null)
+    {
+        return new Event
+        {
+            Title = title,
+            StartAt = startAt ?? DateTime.UtcNow,
+            EndAt = endAt ?? DateTime.UtcNow.AddHours(2)
+        };
+    }
     private static List<Event> SampleEvents() =>
     [
         CreateEvent(title: "Null Meeting", startAt: new DateTime(2026, 1, 10), endAt: new DateTime(2026, 1, 10, 11, 0, 0)),
@@ -45,35 +45,36 @@ public class EventServiceTests
             Title = "Second Event",
             StartAt = DateTime.UtcNow,
             EndAt = DateTime.UtcNow.AddHours(2)
-        });  
-        Assert.Equal(1,first.Id );
-        Assert.Equal(2,second.Id );
+        });
+        Assert.Equal(1, first.Id);
+        Assert.Equal(2, second.Id);
     }
 
     [Fact]
     public void GetEventById_ReturnException_WhenNotFound()
     {
         var service = new EventService();
-        Assert.Throws<NotFoundException>(() => service.GetEventById(9999));     
+        Assert.Throws<NotFoundException>(() => service.GetEventById(9999));
     }
     [Fact]
     public void GetEventById_ReturnEvent()
-    {   
+    {
         var service = new EventService();
         foreach (var e in SampleEvents())
         {
             service.CreateEvent(e);
         }
-        
-        
+
+
         var result = service.GetEventById(1);
-        
+
         Assert.Equal(1, result.Id);
         Assert.Equal("Null Meeting", result.Title);
-        
+
     }
 
-    [Fact] public void GetEvents_ReturnAllEvents_WhenEmptyFilters()
+    [Fact]
+    public void GetEvents_ReturnAllEvents_WhenEmptyFilters()
     {
         var service = new EventService();
         foreach (var e in SampleEvents())
@@ -93,11 +94,11 @@ public class EventServiceTests
         {
             service.CreateEvent(e);
         }
-        
+
         var result = service.GetEvents("meeting", null, null);
 
         Assert.Equal(4, result.TotalCount);
-        
+
     }
 
     [Fact]
@@ -108,9 +109,9 @@ public class EventServiceTests
         {
             service.CreateEvent(e);
         }
-        var result = service.GetEvents(null, new DateTime(2026,1,1), new DateTime(2026,4,1));
-        
-         Assert.Equal(4, result.TotalCount);
+        var result = service.GetEvents(null, new DateTime(2026, 1, 1), new DateTime(2026, 4, 1));
+
+        Assert.Equal(4, result.TotalCount);
     }
 
     [Fact]
@@ -121,8 +122,8 @@ public class EventServiceTests
         {
             service.CreateEvent(e);
         }
-        var result = service.GetEvents("MEETING", new DateTime(2026,1,1), new DateTime(2026,4,1));
-        
+        var result = service.GetEvents("MEETING", new DateTime(2026, 1, 1), new DateTime(2026, 4, 1));
+
         Assert.Equal(2, result.TotalCount);
     }
 

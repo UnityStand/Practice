@@ -5,9 +5,9 @@ using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-public class EventService:IEventService
+public class EventService : IEventService
 {
-    private  List<Event> Events { get; set; } = [];
+    private List<Event> Events { get; set; } = [];
 
     private Event FindEventOrThrow(int id)
     {
@@ -23,11 +23,11 @@ public class EventService:IEventService
             throw new ValidationException("EndAt не может быть раньше или равен StartAt");
     }
 
-    public PaginatedResult<Event>  GetEvents(string? title, DateTime? from, DateTime? to, int page =1 ,int pageSize = 10 )
+    public PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
-        var query = Events.AsEnumerable(); 
+        var query = Events.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(title))
-            query = query.Where(e => e.Title.Contains(title,StringComparison.OrdinalIgnoreCase));
+            query = query.Where(e => e.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
         if (from != null)
             query = query.Where(e => e.StartAt >= from);
         if (to != null)
@@ -45,7 +45,7 @@ public class EventService:IEventService
 
     public Event GetEventById(int id)
     {
-       return FindEventOrThrow(id);
+        return FindEventOrThrow(id);
     }
 
 
@@ -62,13 +62,13 @@ public class EventService:IEventService
     {
         ValidateDates(updatedEvent.StartAt, updatedEvent.EndAt);
 
-        var existingEvent  =  FindEventOrThrow(updatedEvent.Id);
+        var existingEvent = FindEventOrThrow(updatedEvent.Id);
 
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
-        existingEvent.StartAt=updatedEvent.StartAt;
-        existingEvent.EndAt=updatedEvent.EndAt;
-        
+        existingEvent.StartAt = updatedEvent.StartAt;
+        existingEvent.EndAt = updatedEvent.EndAt;
+
         return existingEvent;
     }
 

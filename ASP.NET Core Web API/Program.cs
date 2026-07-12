@@ -12,11 +12,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<IEventService, EventService>();
 builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();   
+builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();
 
 var app = builder.Build();
 
-app.UseExceptionHandler(); 
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
