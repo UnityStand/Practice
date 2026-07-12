@@ -1,4 +1,5 @@
-﻿using ASP.NET_Core_Web_API.DTOs;
+﻿using System.ComponentModel.DataAnnotations;
+using ASP.NET_Core_Web_API.DTOs;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 
@@ -10,10 +11,16 @@ public class EventService:IEventService
 
     private Event FindEventOrThrow(int id)
     {
-        var result = Events.FirstOrDefault(x => x.Id == id);    
+        var result = Events.FirstOrDefault(x => x.Id == id);
         if (result == null) throw new NotFoundException($"Событие с id {id} не найдено");
-        
+
         return result;
+    }
+
+    private static void ValidateDates(DateTime startAt, DateTime endAt)
+    {
+        if (endAt <= startAt)
+            throw new ValidationException("EndAt не может быть раньше или равен StartAt");
     }
 
     public PaginatedResult<Event>  GetEvents(string? title, DateTime? from, DateTime? to, int page =1 ,int pageSize = 10 )
@@ -43,16 +50,20 @@ public class EventService:IEventService
 
 
     public Event CreateEvent(Event newEvent)
-    {   
-        newEvent.Id = Events.Count == 0 ? 1 : Events.Max(e => e.Id) + 1;  
+    {
+        ValidateDates(newEvent.StartAt, newEvent.EndAt);
+
+        newEvent.Id = Events.Count == 0 ? 1 : Events.Max(e => e.Id) + 1;
         Events.Add(newEvent);
         return newEvent;
     }
 
     public Event UpdateEvent(Event updatedEvent)
     {
+        ValidateDates(updatedEvent.StartAt, updatedEvent.EndAt);
+
         var existingEvent  =  FindEventOrThrow(updatedEvent.Id);
-        
+
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
         existingEvent.StartAt=updatedEvent.StartAt;
