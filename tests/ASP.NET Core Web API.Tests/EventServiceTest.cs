@@ -87,7 +87,7 @@ public class EventServiceTests
     }
 
     [Fact]
-    public void GetEvents_SortByTitle_IgnoreCase()
+    public void GetEvents_FiltersByTitle_IgnoreCase()
     {
         var service = new EventService();
         foreach (var e in SampleEvents())
@@ -102,7 +102,7 @@ public class EventServiceTests
     }
 
     [Fact]
-    public void GetEvents_SortByDate()
+    public void GetEvents_FiltersByDateRange()
     {
         var service = new EventService();
         foreach (var e in SampleEvents())
@@ -115,7 +115,7 @@ public class EventServiceTests
     }
 
     [Fact]
-    public void GetEvents_SortByDateAndTitle_IgnoreCase()
+    public void GetEvents_FiltersByTitleAndDateRange_IgnoreCase()
     {
         var service = new EventService();
         foreach (var e in SampleEvents())
