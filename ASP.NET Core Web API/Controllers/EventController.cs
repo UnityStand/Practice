@@ -9,9 +9,9 @@ namespace ASP.NET_Core_Web_API.Controllers;
 public class EventController(IEventService eventService) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<List<Event>>  GetEvents(string? title, DateTime? from, DateTime? to)    
+    public ActionResult<PaginatedResult<Event>>  GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)    
     {
-        return eventService.GetEvents(title, from, to);
+        return eventService.GetEvents(title, from, to, page, pageSize);
     }
 
     [HttpGet("{eventId:int}")]

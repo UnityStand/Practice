@@ -1,4 +1,5 @@
-﻿using ASP.NET_Core_Web_API.Exceptions;
+﻿using ASP.NET_Core_Web_API.DTOs;
+using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
@@ -7,7 +8,7 @@ public class EventService:IEventService
 {
     private  List<Event> Events { get; set; } = [];
 
-    public List<Event>  GetEvents(string? title, DateTime? from, DateTime? to)
+    public PaginatedResult<Event>  GetEvents(string? title, DateTime? from, DateTime? to, int page =1 ,int pageSize = 10 )
     {
         var query = Events.AsEnumerable(); 
         if (!string.IsNullOrWhiteSpace(title))
@@ -16,7 +17,15 @@ public class EventService:IEventService
             query = query.Where(e => e.StartAt >= from);
         if (to != null)
             query = query.Where(e => e.EndAt <= to);
-        return query.ToList(); 
+        var total = query.Count();
+        var items = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return new PaginatedResult<Event>
+        {
+            TotalCount = total,
+            Items = items,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public Event GetEventById(int id)
