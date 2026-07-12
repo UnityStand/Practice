@@ -45,9 +45,8 @@ public class EventController(IEventService eventService) : ControllerBase
         return  NoContent();
     }
 
-    private static Event MapDtoToEvent(EventDTO dto, int id = 1) => new Event()
+    private static Event MapDtoToEvent(EventDTO dto) => new ()
     {
-        Id = id, 
         Title = dto.Title,
         Description = dto.Description,
         StartAt = dto.StartAt,
