@@ -53,7 +53,7 @@ public class EventController(IEventService eventService) : ControllerBase
     [HttpDelete("{eventId:int}")]  
     public IActionResult DeleteEvent(int eventId)
     {
-        var result = eventService.DeleteEvent(eventId);
+        eventService.DeleteEvent(eventId);
         return  NoContent();
     }
     

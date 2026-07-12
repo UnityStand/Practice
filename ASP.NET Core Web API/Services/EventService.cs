@@ -38,8 +38,7 @@ public class EventService:IEventService
 
     public Event GetEventById(int id)
     {
-       var result =  FindEventOrThrow(id);
-       return result;
+       return FindEventOrThrow(id);
     }
 
 
@@ -53,7 +52,6 @@ public class EventService:IEventService
     public Event UpdateEvent(Event updatedEvent)
     {
         var existingEvent  =  FindEventOrThrow(updatedEvent.Id);
-
         
         existingEvent.Title = updatedEvent.Title;
         existingEvent.Description = updatedEvent.Description;
