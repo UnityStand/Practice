@@ -24,13 +24,7 @@ public class EventController(IEventService eventService) : ControllerBase
     [HttpPost]
     public IActionResult PostEvent(EventDTO eventDto)
     {
-        var newEvent = new Event
-        {
-            Description = eventDto.Description,
-            StartAt = eventDto.StartAt,
-            EndAt = eventDto.EndAt,
-            Title = eventDto.Title,
-        };
+        var newEvent = MapDtoToEvent(eventDto);
         eventService.CreateEvent(newEvent);
         return  CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, newEvent);
     }
@@ -38,13 +32,7 @@ public class EventController(IEventService eventService) : ControllerBase
     [HttpPut("{eventId:int}")]
     public IActionResult PutEvent(int eventId, EventDTO eventDto)
     {
-        var updatedEvent = new Event
-        {
-            Description = eventDto.Description,
-            Title = eventDto.Title,
-            StartAt = eventDto.StartAt,
-            EndAt = eventDto.EndAt,
-        };
+        var updatedEvent = MapDtoToEvent(eventDto);
         updatedEvent.Id = eventId;    
         var result = eventService.UpdateEvent(updatedEvent);                                                                            
         return Ok(result);   
@@ -56,5 +44,14 @@ public class EventController(IEventService eventService) : ControllerBase
         eventService.DeleteEvent(eventId);
         return  NoContent();
     }
-    
+
+    private static Event MapDtoToEvent(EventDTO dto, int id = 1) => new Event()
+    {
+        Id = id, 
+        Title = dto.Title,
+        Description = dto.Description,
+        StartAt = dto.StartAt,
+        EndAt = dto.EndAt
+    };
+
 }
