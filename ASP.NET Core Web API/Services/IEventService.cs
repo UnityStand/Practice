@@ -1,13 +1,13 @@
-﻿using ASP.NET_Core_Web_API.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using ASP.NET_Core_Web_API.DTOs;
+using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
 public interface IEventService
 {
-    List<Event>  GetEvents();
-    Event? GetEventById(int id);
+    PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10);
+    Event GetEventById(int id);
     Event CreateEvent(Event newEvent);
-    Event? UpdateEvent(Event updatedEvent);
+    Event UpdateEvent(Event updatedEvent);
     bool DeleteEvent(int id);
 }
