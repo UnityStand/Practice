@@ -15,7 +15,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpGet("{eventId:int}")]
-    public ActionResult<Event> GetEvent(int eventId)
+    public ActionResult<Event> GetEvent(Guid eventId)
     {
         var ev = eventService.GetEventById(eventId);    
         return ev is null ? Problem(statusCode: StatusCodes.Status404NotFound, title:"Event not Found"): Ok(ev);    
@@ -36,7 +36,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpPut("{eventId:int}")]
-    public IActionResult PutEvent(int eventId, EventDTO eventDto)
+    public IActionResult PutEvent(Guid eventId, EventDTO eventDto)
     {
         var updatedEvent = new Event
         {
@@ -51,7 +51,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpDelete("{eventId:int}")]  
-    public IActionResult DeleteEvent(int eventId)
+    public IActionResult DeleteEvent(Guid eventId)
     {
         var result = eventService.DeleteEvent(eventId);
         return result is false ? Problem(statusCode: StatusCodes.Status404NotFound, title:"Event not Found") : Ok(result);

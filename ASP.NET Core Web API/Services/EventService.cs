@@ -12,7 +12,7 @@ public class EventService:IEventService
         return Events;
     }
 
-    public Event? GetEventById(int id)
+    public Event? GetEventById(Guid id)
     {
         //  FirstOrDefault вернёт null, если события с таким id нет — контроллер это использует для 404. 
         return Events.FirstOrDefault(e => e.Id == id);
@@ -20,7 +20,7 @@ public class EventService:IEventService
 
     public Event CreateEvent(Event newEvent)
     {   
-        newEvent.Id = Events.Count == 0 ? 1 : Events.Max(e => e.Id) + 1;  
+        newEvent.Id = Guid.NewGuid();
         Events.Add(newEvent);
         return newEvent;
     }
@@ -38,7 +38,7 @@ public class EventService:IEventService
         return existingEvent;
     }
 
-    public bool DeleteEvent(int id)
+    public bool DeleteEvent(Guid id)
     {
         var existingEvent = Events.FirstOrDefault(e => e.Id == id);
         if (existingEvent == null) return false;
