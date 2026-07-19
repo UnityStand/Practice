@@ -1,6 +1,6 @@
 ﻿using ASP.NET_Core_Web_API.Models;
 
-namespace ASP.NET_Core_Web_API.Services;
+namespace ASP.NET_Core_Web_API.DataAccess;
 
 public class InMemoryBooking: IBookingStore
 {
@@ -19,5 +19,12 @@ public class InMemoryBooking: IBookingStore
     public IEnumerable<Booking> GetBookingsPending()
     {
        return _bookings.Where(b => b.Status == BookingStatus.Pending);
+    }
+
+    public Booking UpdateBooking(Booking booking)
+    {
+        var index = _bookings.FindIndex(b => b.Id == booking.Id);   
+        if (index != -1) _bookings[index] = booking; 
+        return booking;    
     }
 }
