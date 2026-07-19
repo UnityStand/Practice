@@ -1,14 +1,28 @@
-﻿namespace ASP.NET_Core_Web_API.Services;
+﻿using ASP.NET_Core_Web_API.Models;
+namespace ASP.NET_Core_Web_API.Services;
 
-public class BookingService : IBookingService
+public class BookingService (IBookingStore bookingStore,IEventService eventService) : IBookingService 
 {
-    Task CreateBookingAsync(Guid eventId)
+
+  
+    public Task<Booking?>  CreateBookingAsync(Guid eventId)
     {
-        return Task.CompletedTask;
+        if (eventService.GetEventById(eventId) is null) return Task.FromResult<Booking?>(null);
+        var result = new Booking
+        {
+            Id = Guid.NewGuid(),
+            EventId = eventId,
+            Status = BookingStatus.Pending,
+            CreatedAt = DateTime.Now
+        };
+        bookingStore.AddBooking(result);
+        return Task.FromResult(result);
+
     }
 
-    Task  GetBookingByIdAsync(Guid bookingId)
+    public Task<Booking?>  GetBookingByIdAsync(Guid bookingId)
     {
-        return Task.CompletedTask;
+        var result = bookingStore.GetBooking(bookingId);
+        return Task.FromResult(result);
     }
 }

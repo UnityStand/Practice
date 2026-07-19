@@ -10,6 +10,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<IEventService, EventService>();
+builder.Services.AddSingleton<IBookingStore, InMemoryBooking>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
