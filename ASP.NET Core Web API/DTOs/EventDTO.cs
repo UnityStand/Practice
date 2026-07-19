@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.DTOs;
 
@@ -8,6 +9,7 @@ public class EventDTO : IValidatableObject
     public string? Description { get; set; }
     [Required] public DateTime StartAt { get; set; }
     [Required] public DateTime EndAt { get; set; }
+
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
