@@ -1,4 +1,4 @@
-using ASP.NET_Core_Web_API.Exceptions;
+using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Services;
 
 
@@ -11,12 +11,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<IEventService, EventService>();
+builder.Services.AddSingleton<IBookingStore, InMemoryBooking>();
+builder.Services.AddHostedService<BookingProcessingService>();                              
+builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
+app.UseExceptionHandler(); 
 
 if (app.Environment.IsDevelopment())
 {
