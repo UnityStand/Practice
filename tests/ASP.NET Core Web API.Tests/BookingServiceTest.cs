@@ -9,8 +9,8 @@ public class BookingServiceTests
 {
     private static (BookingService bookingService, IEventService eventService, IBookingStore bookingStore) CreateSut()
     {
-        var eventService = new EventService();
-        var bookingStore = new InMemoryBooking();
+        var eventService = new EventService(new InMemoryEventStore());
+        var bookingStore = new InMemoryBookingStore();
         var bookingService = new BookingService(bookingStore, eventService);
         return (bookingService, eventService, bookingStore);
     }
@@ -102,12 +102,12 @@ public class BookingServiceTests
     }
 }
 
-public class InMemoryBookingTests
+public class InMemoryBookingStoreTests
 {
     [Fact]
     public void GetBookingsPending_ExcludesConfirmedBookings()
     {
-        var store = new InMemoryBooking();
+        var store = new InMemoryBookingStore();
         var pending = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
         var confirmed = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Confirmed, CreatedAt = DateTime.UtcNow };
         store.AddBooking(pending);
@@ -122,7 +122,7 @@ public class InMemoryBookingTests
     [Fact]
     public void UpdateBooking_PersistsStatusChange()
     {
-        var store = new InMemoryBooking();
+        var store = new InMemoryBookingStore();
         var booking = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
         store.AddBooking(booking);
 

@@ -2,7 +2,7 @@ using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.DataAccess;
 
-public class InMemoryBooking : IBookingStore
+public class InMemoryBookingStore : IBookingStore
 {
     private readonly List<Booking> _bookings = [];
 

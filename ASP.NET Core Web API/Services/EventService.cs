@@ -1,16 +1,16 @@
-﻿using ASP.NET_Core_Web_API.DTOs;
+﻿using ASP.NET_Core_Web_API.DataAccess;
+using ASP.NET_Core_Web_API.DTOs;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-public class EventService : IEventService
+public class EventService(IEventStore eventStore) : IEventService
 {
-    private List<Event> Events { get; set; } = [];
 
     private Event FindEventOrThrow(Guid id)
     {
-        var result = Events.FirstOrDefault(x => x.Id == id);
+        var result = eventStore.Get(id);
         if (result == null) throw new NotFoundException($"Событие с id {id} не найдено");
 
         return result;
@@ -18,7 +18,7 @@ public class EventService : IEventService
     
     public PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
-        var query = Events.AsEnumerable();
+        var query = eventStore.GetAll();
         if (!string.IsNullOrWhiteSpace(title))
             query = query.Where(e => e.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
         if (from != null)
@@ -45,9 +45,8 @@ public class EventService : IEventService
     public Event CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
         var newEvent = Event.Create(title, description, startAt, endAt, totalSeats);
-        newEvent.Id = Guid.NewGuid();
-        Events.Add(newEvent);
-        return newEvent;
+
+        return eventStore.Add(newEvent) ;
     }
 
     public Event UpdateEvent(Event updatedEvent)
@@ -65,7 +64,7 @@ public class EventService : IEventService
     public bool DeleteEvent(Guid id)
     {
         var existingEvent = FindEventOrThrow(id);
-        Events.Remove(existingEvent);
+        eventStore.Remove(existingEvent);
         return true;
     }
 }

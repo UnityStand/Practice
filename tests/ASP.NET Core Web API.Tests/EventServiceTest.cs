@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 using ASP.NET_Core_Web_API.Services;
@@ -36,7 +37,7 @@ public class EventServiceTests
     [Fact]
     public void CreateEvent_AssignsUniqueIds()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         var first = CreateTestEvent(service, title: "First Event");
         var second = CreateTestEvent(service, title: "Second Event");
 
@@ -48,7 +49,7 @@ public class EventServiceTests
     [Fact]
     public void CreateEvent_Throws_WhenTotalSeatsIsNotPositive()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
 
         Assert.Throws<ValidationException>(() =>
             service.CreateEvent("Invalid Event", null, DateTime.UtcNow, DateTime.UtcNow.AddHours(1), 0));
@@ -57,7 +58,7 @@ public class EventServiceTests
     [Fact]
     public void CreateEvent_SetsAvailableSeatsEqualToTotalSeats()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         var created = CreateTestEvent(service, totalSeats: 5);
 
         Assert.Equal(5, created.TotalSeats);
@@ -67,14 +68,14 @@ public class EventServiceTests
     [Fact]
     public void GetEventById_ReturnException_WhenNotFound()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         Assert.Throws<NotFoundException>(() => service.GetEventById(Guid.NewGuid()));
     }
 
     [Fact]
     public void GetEventById_ReturnEvent()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         var events = SampleEvents(service);
 
         var result = service.GetEventById(events[0].Id);
@@ -86,7 +87,7 @@ public class EventServiceTests
     [Fact]
     public void GetEvents_ReturnAllEvents_WhenEmptyFilters()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         SampleEvents(service);
 
         var result = service.GetEvents(null, null, null);
@@ -96,7 +97,7 @@ public class EventServiceTests
     [Fact]
     public void GetEvents_FiltersByTitle_IgnoreCase()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         SampleEvents(service);
 
         var result = service.GetEvents("meeting", null, null);
@@ -107,7 +108,7 @@ public class EventServiceTests
     [Fact]
     public void GetEvents_FiltersByDateRange()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         SampleEvents(service);
 
         var result = service.GetEvents(null, new DateTime(2026, 1, 1), new DateTime(2026, 4, 1));
@@ -118,7 +119,7 @@ public class EventServiceTests
     [Fact]
     public void GetEvents_FiltersByTitleAndDateRange_IgnoreCase()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         SampleEvents(service);
 
         var result = service.GetEvents("MEETING", new DateTime(2026, 1, 1), new DateTime(2026, 4, 1));
@@ -129,7 +130,7 @@ public class EventServiceTests
     [Fact]
     public void UpdateEvent_UpdatesExistingEvent()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         var created = CreateTestEvent(service, title: "Original Title");
 
         var updated = service.UpdateEvent(new Event
@@ -151,7 +152,7 @@ public class EventServiceTests
     [Fact]
     public void UpdateEvent_Throws_WhenNotFound()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
 
         Assert.Throws<NotFoundException>(() => service.UpdateEvent(new Event
         {
@@ -165,7 +166,7 @@ public class EventServiceTests
     [Fact]
     public void DeleteEvent_RemovesExistingEvent()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         var created = CreateTestEvent(service);
 
         var result = service.DeleteEvent(created.Id);
@@ -177,7 +178,7 @@ public class EventServiceTests
     [Fact]
     public void DeleteEvent_Throws_WhenNotFound()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
 
         Assert.Throws<NotFoundException>(() => service.DeleteEvent(Guid.NewGuid()));
     }
@@ -185,7 +186,7 @@ public class EventServiceTests
     [Fact]
     public void GetEvents_ReturnsCorrectPage()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         SampleEvents(service);
 
         var result = service.GetEvents(null, null, null, page: 2, pageSize: 3);
@@ -201,7 +202,7 @@ public class EventServiceTests
     [Fact]
     public void GetEvents_ReturnsPartialLastPage()
     {
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
         SampleEvents(service);
 
         var result = service.GetEvents(null, null, null, page: 3, pageSize: 3);
