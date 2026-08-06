@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using ASP.NET_Core_Web_API.DTOs;
+﻿using ASP.NET_Core_Web_API.DTOs;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 
@@ -16,13 +15,7 @@ public class EventService : IEventService
 
         return result;
     }
-
-    private static void ValidateDates(DateTime startAt, DateTime endAt)
-    {
-        if (endAt <= startAt)
-            throw new ValidationException("EndAt не может быть раньше или равен StartAt");
-    }
-
+    
     public PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
         var query = Events.AsEnumerable();
@@ -59,8 +52,6 @@ public class EventService : IEventService
 
     public Event UpdateEvent(Event updatedEvent)
     {
-
-
         var existingEvent = FindEventOrThrow(updatedEvent.Id);
 
         existingEvent.Title = updatedEvent.Title;
