@@ -49,10 +49,9 @@ public class EventService : IEventService
     }
 
 
-    public Event CreateEvent(Event newEvent)
+    public Event CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
-        ValidateDates(newEvent.StartAt, newEvent.EndAt);
-
+        var newEvent = Event.Create(title, description, startAt, endAt, totalSeats);
         newEvent.Id = Events.Count == 0 ? 1 : Events.Max(e => e.Id) + 1;
         Events.Add(newEvent);
         return newEvent;
@@ -60,7 +59,7 @@ public class EventService : IEventService
 
     public Event UpdateEvent(Event updatedEvent)
     {
-        ValidateDates(updatedEvent.StartAt, updatedEvent.EndAt);
+
 
         var existingEvent = FindEventOrThrow(updatedEvent.Id);
 

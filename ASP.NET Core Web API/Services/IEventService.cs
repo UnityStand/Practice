@@ -7,7 +7,7 @@ public interface IEventService
 {
     PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10);
     Event GetEventById(int id);
-    Event CreateEvent(Event newEvent);
+    Event CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats);
     Event UpdateEvent(Event updatedEvent);
     bool DeleteEvent(int id);
 }
