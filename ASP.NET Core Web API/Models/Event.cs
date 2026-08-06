@@ -36,13 +36,10 @@ public class Event
         {
             return false;
         }
-        else
-        {
-            AvailableSeats -= count;
-            return true ;
-        }
+        AvailableSeats -= count;
+        return true ;
 
-        
+
     }
     
     public bool ReleaseSeats(int count = 1)
