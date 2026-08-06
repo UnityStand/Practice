@@ -34,7 +34,7 @@ public class GlobalExceptionHandlingMiddleware : IExceptionHandler
         {
             Status = statusCode,
             Detail = statusCode == StatusCodes.Status500InternalServerError ?
-                "Произошла непредвиденная ошибка"
+                "An unexpected error occurred"
                 : exception.Message
         };
         //  4. httpContext.Response.StatusCode = ...

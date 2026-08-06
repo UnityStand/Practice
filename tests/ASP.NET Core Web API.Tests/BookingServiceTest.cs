@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
@@ -99,6 +100,145 @@ public class BookingServiceTests
         var (bookingService, _, _) = CreateSut();
 
         await Assert.ThrowsAsync<NotFoundException>(() => bookingService.GetBookingByIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_DecreasesAvailableSeatsByOne()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 5);
+
+        await bookingService.CreateBookingAsync(ev.Id);
+
+        Assert.Equal(4, eventService.GetEventById(ev.Id).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_AllowsBookingsUpToCapacity_AllSucceedWithUniqueIds()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 3);
+
+        var first = await bookingService.CreateBookingAsync(ev.Id);
+        var second = await bookingService.CreateBookingAsync(ev.Id);
+        var third = await bookingService.CreateBookingAsync(ev.Id);
+
+        var ids = new[] { first.Id, second.Id, third.Id };
+        Assert.Equal(3, ids.Distinct().Count());
+        Assert.Equal(0, eventService.GetEventById(ev.Id).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_Throws_WhenSeatsExhausted()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 1);
+        await bookingService.CreateBookingAsync(ev.Id);
+
+        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => bookingService.CreateBookingAsync(ev.Id));
+    }
+
+    [Fact]
+    public async Task ReleaseSeats_AfterReject_RestoresAvailableSeats()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 1);
+        var booking = await bookingService.CreateBookingAsync(ev.Id);
+
+        booking.Reject();
+        eventService.GetEventById(ev.Id).ReleaseSeats();
+
+        Assert.Equal(1, eventService.GetEventById(ev.Id).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_SucceedsAgain_AfterPreviousBookingReleasedSeat()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 1);
+        var firstBooking = await bookingService.CreateBookingAsync(ev.Id);
+
+        firstBooking.Reject();
+        eventService.GetEventById(ev.Id).ReleaseSeats();
+
+        var secondBooking = await bookingService.CreateBookingAsync(ev.Id);
+
+        Assert.NotEqual(firstBooking.Id, secondBooking.Id);
+        Assert.Equal(0, eventService.GetEventById(ev.Id).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_UnderConcurrency_AllowsExactlyCapacityBookings()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 5);
+        const int concurrentRequests = 20;
+        var successCount = 0;
+        var noSeatsCount = 0;
+
+        var tasks = Enumerable.Range(0, concurrentRequests).Select(_ => Task.Run(async () =>
+        {
+            try
+            {
+                await bookingService.CreateBookingAsync(ev.Id);
+                Interlocked.Increment(ref successCount);
+            }
+            catch (NoAvailableSeatsException)
+            {
+                Interlocked.Increment(ref noSeatsCount);
+            }
+        })).ToArray();
+
+        await Task.WhenAll(tasks);
+
+        Assert.Equal(5, successCount);
+        Assert.Equal(15, noSeatsCount);
+        Assert.Equal(0, eventService.GetEventById(ev.Id).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_UnderConcurrency_AllBookingsHaveUniqueIds()
+    {
+        var (bookingService, eventService, _) = CreateSut();
+        var ev = CreateTestEvent(eventService, totalSeats: 10);
+        const int concurrentRequests = 10;
+        var bookings = new ConcurrentBag<Booking>();
+
+        var tasks = Enumerable.Range(0, concurrentRequests).Select(_ => Task.Run(async () =>
+        {
+            var booking = await bookingService.CreateBookingAsync(ev.Id);
+            bookings.Add(booking);
+        })).ToArray();
+
+        await Task.WhenAll(tasks);
+
+        Assert.Equal(concurrentRequests, bookings.Count);
+        Assert.Equal(concurrentRequests, bookings.Select(b => b.Id).Distinct().Count());
+    }
+}
+
+public class BookingTests
+{
+    [Fact]
+    public void Confirm_SetsStatusConfirmedAndProcessedAt()
+    {
+        var booking = new Booking { Status = BookingStatus.Pending };
+
+        booking.Confirm();
+
+        Assert.Equal(BookingStatus.Confirmed, booking.Status);
+        Assert.NotNull(booking.ProcessedAt);
+    }
+
+    [Fact]
+    public void Reject_SetsStatusRejectedAndProcessedAt()
+    {
+        var booking = new Booking { Status = BookingStatus.Pending };
+
+        booking.Reject();
+
+        Assert.Equal(BookingStatus.Rejected, booking.Status);
+        Assert.NotNull(booking.ProcessedAt);
     }
 }
 

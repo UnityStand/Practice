@@ -34,7 +34,7 @@ public class BookingService(IBookingStore bookingStore, IEventService eventServi
     public Task<Booking> GetBookingByIdAsync(Guid bookingId)
     {
         var booking = bookingStore.GetBooking(bookingId);
-        if (booking is null) throw new NotFoundException($"Бронь с id {bookingId} не найдена");
+        if (booking is null) throw new NotFoundException($"Booking with id {bookingId} not found");
 
         return Task.FromResult(booking);
     }

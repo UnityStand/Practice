@@ -11,7 +11,7 @@ public class EventService(IEventStore eventStore) : IEventService
     private Event FindEventOrThrow(Guid id)
     {
         var result = eventStore.Get(id);
-        if (result == null) throw new NotFoundException($"Событие с id {id} не найдено");
+        if (result == null) throw new NotFoundException($"Event with id {id} not found");
 
         return result;
     }
