@@ -6,8 +6,8 @@ namespace ASP.NET_Core_Web_API.DTOs;
 
 public class BookingResponseDto
 {
-    [Required] public int BookingId { get; set; }
-    [Required] public int EventId { get; set; }
+    [Required] public Guid BookingId { get; set; }
+    [Required] public Guid EventId { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [Required] public BookingStatus Status { get; set; }
     [Required] public DateTime CreatedAt { get; set; }

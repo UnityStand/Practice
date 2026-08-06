@@ -6,7 +6,7 @@ namespace ASP.NET_Core_Web_API.Services;
 
 public class BookingService(IBookingStore bookingStore, IEventService eventService) : IBookingService
 {
-    public Task<Booking> CreateBookingAsync(int eventId)
+    public Task<Booking> CreateBookingAsync(Guid eventId)
     {
         eventService.GetEventById(eventId);
 
@@ -20,7 +20,7 @@ public class BookingService(IBookingStore bookingStore, IEventService eventServi
         return Task.FromResult(booking);
     }
 
-    public Task<Booking> GetBookingByIdAsync(int bookingId)
+    public Task<Booking> GetBookingByIdAsync(Guid bookingId)
     {
         var booking = bookingStore.GetBooking(bookingId);
         if (booking is null) throw new NotFoundException($"Бронь с id {bookingId} не найдена");

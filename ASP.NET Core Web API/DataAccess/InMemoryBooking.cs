@@ -6,14 +6,14 @@ public class InMemoryBooking : IBookingStore
 {
     private readonly List<Booking> _bookings = [];
 
-    public Booking? GetBooking(int bookingId)
+    public Booking? GetBooking(Guid bookingId)
     {
         return _bookings.FirstOrDefault(b => b.Id == bookingId);
     }
 
     public Booking AddBooking(Booking booking)
     {
-        booking.Id = _bookings.Count == 0 ? 1 : _bookings.Max(b => b.Id) + 1;
+        booking.Id = Guid.NewGuid();
         _bookings.Add(booking);
         return booking;
     }

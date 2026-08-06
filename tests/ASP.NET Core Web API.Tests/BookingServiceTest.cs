@@ -30,7 +30,7 @@ public class BookingServiceTests
 
         Assert.Equal(ev.Id, booking.EventId);
         Assert.Equal(BookingStatus.Pending, booking.Status);
-        Assert.True(booking.Id > 0);
+        Assert.NotEqual(Guid.Empty, booking.Id);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class BookingServiceTests
     {
         var (bookingService, _, _) = CreateSut();
 
-        await Assert.ThrowsAsync<NotFoundException>(() => bookingService.CreateBookingAsync(9999));
+        await Assert.ThrowsAsync<NotFoundException>(() => bookingService.CreateBookingAsync(Guid.NewGuid()));
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class BookingServiceTests
     {
         var (bookingService, _, _) = CreateSut();
 
-        await Assert.ThrowsAsync<NotFoundException>(() => bookingService.GetBookingByIdAsync(9999));
+        await Assert.ThrowsAsync<NotFoundException>(() => bookingService.GetBookingByIdAsync(Guid.NewGuid()));
     }
 }
 
@@ -108,8 +108,8 @@ public class InMemoryBookingTests
     public void GetBookingsPending_ExcludesConfirmedBookings()
     {
         var store = new InMemoryBooking();
-        var pending = new Booking { EventId = 1, Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
-        var confirmed = new Booking { EventId = 1, Status = BookingStatus.Confirmed, CreatedAt = DateTime.UtcNow };
+        var pending = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
+        var confirmed = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Confirmed, CreatedAt = DateTime.UtcNow };
         store.AddBooking(pending);
         store.AddBooking(confirmed);
 
@@ -123,7 +123,7 @@ public class InMemoryBookingTests
     public void UpdateBooking_PersistsStatusChange()
     {
         var store = new InMemoryBooking();
-        var booking = new Booking { EventId = 1, Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
+        var booking = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
         store.AddBooking(booking);
 
         booking.Status = BookingStatus.Rejected;

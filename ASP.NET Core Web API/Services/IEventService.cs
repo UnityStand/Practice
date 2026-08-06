@@ -6,8 +6,8 @@ namespace ASP.NET_Core_Web_API.Services;
 public interface IEventService
 {
     PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10);
-    Event GetEventById(int id);
+    Event GetEventById(Guid id);
     Event CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats);
     Event UpdateEvent(Event updatedEvent);
-    bool DeleteEvent(int id);
+    bool DeleteEvent(Guid id);
 }

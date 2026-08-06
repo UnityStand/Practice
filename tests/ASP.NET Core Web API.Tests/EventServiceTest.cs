@@ -34,14 +34,15 @@ public class EventServiceTests
     ];
 
     [Fact]
-    public void CreateEvent_AssignsIncrementingIds()
+    public void CreateEvent_AssignsUniqueIds()
     {
         var service = new EventService();
         var first = CreateTestEvent(service, title: "First Event");
         var second = CreateTestEvent(service, title: "Second Event");
 
-        Assert.Equal(1, first.Id);
-        Assert.Equal(2, second.Id);
+        Assert.NotEqual(Guid.Empty, first.Id);
+        Assert.NotEqual(Guid.Empty, second.Id);
+        Assert.NotEqual(first.Id, second.Id);
     }
 
     [Fact]
@@ -67,18 +68,18 @@ public class EventServiceTests
     public void GetEventById_ReturnException_WhenNotFound()
     {
         var service = new EventService();
-        Assert.Throws<NotFoundException>(() => service.GetEventById(9999));
+        Assert.Throws<NotFoundException>(() => service.GetEventById(Guid.NewGuid()));
     }
 
     [Fact]
     public void GetEventById_ReturnEvent()
     {
         var service = new EventService();
-        SampleEvents(service);
+        var events = SampleEvents(service);
 
-        var result = service.GetEventById(1);
+        var result = service.GetEventById(events[0].Id);
 
-        Assert.Equal(1, result.Id);
+        Assert.Equal(events[0].Id, result.Id);
         Assert.Equal("Null Meeting", result.Title);
     }
 
@@ -154,7 +155,7 @@ public class EventServiceTests
 
         Assert.Throws<NotFoundException>(() => service.UpdateEvent(new Event
         {
-            Id = 9999,
+            Id = Guid.NewGuid(),
             Title = "Doesn't matter",
             StartAt = DateTime.UtcNow,
             EndAt = DateTime.UtcNow.AddHours(1)
@@ -178,7 +179,7 @@ public class EventServiceTests
     {
         var service = new EventService();
 
-        Assert.Throws<NotFoundException>(() => service.DeleteEvent(9999));
+        Assert.Throws<NotFoundException>(() => service.DeleteEvent(Guid.NewGuid()));
     }
 
     [Fact]

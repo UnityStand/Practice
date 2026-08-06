@@ -7,15 +7,15 @@ namespace ASP.NET_Core_Web_API.Controllers;
 [ApiController]
 public class BookingController(IBookingService bookingService) : ControllerBase
 {
-    [HttpGet("/bookings/{bookingId:int}")]
-    public async Task<ActionResult<BookingResponseDto>> GetBooking(int bookingId)
+    [HttpGet("/bookings/{bookingId:Guid}")]
+    public async Task<ActionResult<BookingResponseDto>> GetBooking(Guid bookingId)
     {
         var booking = await bookingService.GetBookingByIdAsync(bookingId);
         return Ok(BookingResponseDto.FromEntity(booking));
     }
 
-    [HttpPost("/events/{eventId:int}/book")]
-    public async Task<ActionResult<BookingResponseDto>> PostBooking(int eventId)
+    [HttpPost("/events/{eventId:Guid}/book")]
+    public async Task<ActionResult<BookingResponseDto>> PostBooking(Guid eventId)
     {
         var booking = await bookingService.CreateBookingAsync(eventId);
         var result = BookingResponseDto.FromEntity(booking);

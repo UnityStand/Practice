@@ -8,7 +8,7 @@ public class EventService : IEventService
 {
     private List<Event> Events { get; set; } = [];
 
-    private Event FindEventOrThrow(int id)
+    private Event FindEventOrThrow(Guid id)
     {
         var result = Events.FirstOrDefault(x => x.Id == id);
         if (result == null) throw new NotFoundException($"Событие с id {id} не найдено");
@@ -36,7 +36,7 @@ public class EventService : IEventService
         };
     }
 
-    public Event GetEventById(int id)
+    public Event GetEventById(Guid id)
     {
         return FindEventOrThrow(id);
     }
@@ -45,7 +45,7 @@ public class EventService : IEventService
     public Event CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
         var newEvent = Event.Create(title, description, startAt, endAt, totalSeats);
-        newEvent.Id = Events.Count == 0 ? 1 : Events.Max(e => e.Id) + 1;
+        newEvent.Id = Guid.NewGuid();
         Events.Add(newEvent);
         return newEvent;
     }
@@ -62,7 +62,7 @@ public class EventService : IEventService
         return existingEvent;
     }
 
-    public bool DeleteEvent(int id)
+    public bool DeleteEvent(Guid id)
     {
         var existingEvent = FindEventOrThrow(id);
         Events.Remove(existingEvent);

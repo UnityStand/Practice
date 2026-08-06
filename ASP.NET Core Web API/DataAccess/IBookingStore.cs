@@ -4,7 +4,7 @@ namespace ASP.NET_Core_Web_API.DataAccess;
 
 public interface IBookingStore
 {
-    Booking? GetBooking(int bookingId);
+    Booking? GetBooking(Guid bookingId);
     Booking AddBooking(Booking booking);
     IEnumerable<Booking> GetBookingsPending();
     Booking UpdateBooking(Booking booking);

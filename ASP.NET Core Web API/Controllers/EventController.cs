@@ -15,8 +15,8 @@ public class EventController(IEventService eventService) : ControllerBase
         return eventService.GetEvents(title, from, to, page, pageSize);
     }
 
-    [HttpGet("{eventId:int}")]
-    public ActionResult<Event> GetEvent(int eventId)
+    [HttpGet("{eventId:Guid}")]
+    public ActionResult<Event> GetEvent(Guid eventId)
     {
         var ev = eventService.GetEventById(eventId);
         return Ok(ev);
@@ -30,8 +30,8 @@ public class EventController(IEventService eventService) : ControllerBase
         return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, newEvent);
     }
 
-    [HttpPut("{eventId:int}")]
-    public IActionResult PutEvent(int eventId, EventInfoDto createEventDto)
+    [HttpPut("{eventId:Guid}")]
+    public IActionResult PutEvent(Guid eventId, EventInfoDto createEventDto)
     {
         var updatedEvent = MapDtoToEvent(createEventDto);
         updatedEvent.Id = eventId;
@@ -39,8 +39,8 @@ public class EventController(IEventService eventService) : ControllerBase
         return Ok(result);
     }
 
-    [HttpDelete("{eventId:int}")]
-    public IActionResult DeleteEvent(int eventId)
+    [HttpDelete("{eventId:Guid}")]
+    public IActionResult DeleteEvent(Guid eventId)
     {
         eventService.DeleteEvent(eventId);
         return NoContent();
