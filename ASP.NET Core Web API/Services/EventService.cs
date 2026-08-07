@@ -15,7 +15,7 @@ public class EventService(IEventStore eventStore) : IEventService
 
         return result;
     }
-    
+
     public PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
         var query = eventStore.GetAll();
@@ -26,7 +26,7 @@ public class EventService(IEventStore eventStore) : IEventService
         if (to != null)
             query = query.Where(e => e.EndAt <= to);
         var total = query.Count();
-        var items = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var items = query.OrderBy(e => e.StartAt).Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return new PaginatedResult<Event>
         {
             TotalCount = total,
@@ -46,7 +46,7 @@ public class EventService(IEventStore eventStore) : IEventService
     {
         var newEvent = Event.Create(title, description, startAt, endAt, totalSeats);
 
-        return eventStore.Add(newEvent) ;
+        return eventStore.Add(newEvent);
     }
 
     public Event UpdateEvent(Event updatedEvent)

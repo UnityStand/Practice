@@ -10,11 +10,12 @@ public class Booking
     public void Confirm()
     {
         Status = BookingStatus.Confirmed;
-        ProcessedAt = DateTime.UtcNow; }
+        ProcessedAt = DateTime.UtcNow;
+    }
 
     public void Reject()
     {
         Status = BookingStatus.Rejected;
         ProcessedAt = DateTime.UtcNow;
-    }   
-}   
+    }
+}

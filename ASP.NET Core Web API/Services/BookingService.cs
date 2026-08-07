@@ -7,28 +7,28 @@ namespace ASP.NET_Core_Web_API.Services;
 public class BookingService(IBookingStore bookingStore, IEventService eventService) : IBookingService
 {
     private readonly object _bookingLock = new();
-    
+
     public Task<Booking> CreateBookingAsync(Guid eventId)
-    {   
+    {
         var @event = eventService.GetEventById(eventId);
         lock (_bookingLock)
         {
-           
-            if (!@event.TryReserveSeats())                                                                                           
-                throw new NoAvailableSeatsException("No available seats for this event");      
-            
+
+            if (!@event.TryReserveSeats())
+                throw new NoAvailableSeatsException("No available seats for this event");
+
             var booking = new Booking
             {
                 EventId = eventId,
                 Status = BookingStatus.Pending,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow
             };
-            
+
             bookingStore.AddBooking(booking);
-            
+
             return Task.FromResult(booking);
         }
-      
+
     }
 
     public Task<Booking> GetBookingByIdAsync(Guid bookingId)

@@ -26,7 +26,7 @@ public class EventController(IEventService eventService) : ControllerBase
     public IActionResult PostEvent(CreateEventDto createEventDto)
     {
 
-       var newEvent = eventService.CreateEvent(createEventDto.Title,createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
+        var newEvent = eventService.CreateEvent(createEventDto.Title, createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
         return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, newEvent);
     }
 

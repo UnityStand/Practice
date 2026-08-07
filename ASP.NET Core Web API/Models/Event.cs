@@ -13,35 +13,35 @@ public class Event
     public int TotalSeats { get; private set; } = 0;
     public int AvailableSeats { get; private set; }
 
-    public static Event Create(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)                                                                               
-    {                                                                                                                                                   
-        if (totalSeats <= 0)                                                                                                                            
-            throw new ValidationException("totalSeats cannot be less or equal to zero");          
-                
-                                                                                                                                                      
-        return new Event                                                                                                                                
-        {          
+    public static Event Create(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
+    {
+        if (totalSeats <= 0)
+            throw new ValidationException("totalSeats cannot be less or equal to zero");
+
+
+        return new Event
+        {
             Description = description,
-            Title = title,                                                                                                                              
-            TotalSeats = totalSeats,                                                                                                                    
+            Title = title,
+            TotalSeats = totalSeats,
             AvailableSeats = totalSeats,
             StartAt = startAt,
             EndAt = endAt
-        };                                                                                                                                              
-    }    
+        };
+    }
 
     public bool TryReserveSeats(int count = 1)
     {
-        if ( AvailableSeats < count  )
+        if (AvailableSeats < count)
         {
             return false;
         }
         AvailableSeats -= count;
-        return true ;
+        return true;
 
 
     }
-    
+
     public bool ReleaseSeats(int count = 1)
     {
         if (AvailableSeats + count > TotalSeats)
@@ -51,9 +51,9 @@ public class Event
         else
         {
             AvailableSeats += count;
-            return true ;
+            return true;
         }
 
-        
+
     }
 }

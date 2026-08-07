@@ -8,8 +8,6 @@ public class EventInfoDto
     public string? Description { get; set; }
     [Required] public DateTime StartAt { get; set; }
     [Required] public DateTime EndAt { get; set; }
-    [Required]  public int TotalSeats { get; set; }
-    [Required] public int AvailableSeats { get; set; }
 
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

@@ -1,32 +1,32 @@
+using System.Collections.Concurrent;
 using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.DataAccess;
 
 public class InMemoryBookingStore : IBookingStore
 {
-    private readonly List<Booking> _bookings = [];
+    private readonly ConcurrentDictionary<Guid, Booking> _bookings = [];
 
     public Booking? GetBooking(Guid bookingId)
     {
-        return _bookings.FirstOrDefault(b => b.Id == bookingId);
+        return _bookings.GetValueOrDefault(bookingId);
     }
 
     public Booking AddBooking(Booking booking)
     {
         booking.Id = Guid.NewGuid();
-        _bookings.Add(booking);
+        _bookings[booking.Id] = booking;
         return booking;
     }
 
     public IEnumerable<Booking> GetBookingsPending()
     {
-        return _bookings.Where(b => b.Status == BookingStatus.Pending);
+        return _bookings.Values.Where(b => b.Status == BookingStatus.Pending);
     }
 
     public Booking UpdateBooking(Booking booking)
     {
-        var index = _bookings.FindIndex(b => b.Id == booking.Id);
-        if (index != -1) _bookings[index] = booking;
+        _bookings[booking.Id] = booking;
         return booking;
     }
 }

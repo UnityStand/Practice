@@ -3,20 +3,21 @@ using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-public class BookingBackgroundService(IBookingStore bookingStore,IEventStore eventStore ,  ILogger<BookingBackgroundService> logger) : BackgroundService
+public class BookingBackgroundService(IBookingStore bookingStore, IEventStore eventStore, ILogger<BookingBackgroundService> logger) : BackgroundService
 {
-    private const int PollingIntervalMs = 1000;                                            
-    private const int ProcessingDelayMs = 1000;   
-    private readonly SemaphoreSlim _processingSemaphore = new(1, 1); 
+    private const int PollingIntervalMs = 1000;
+    private const int ProcessingDelayMs = 1000;
+    private static readonly int MaxConcurrentProcessing = Environment.ProcessorCount;
+    private readonly SemaphoreSlim _processingSemaphore = new(MaxConcurrentProcessing, MaxConcurrentProcessing);
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        
+
         while (!stoppingToken.IsCancellationRequested)
         {
             var pendingBookings = bookingStore.GetBookingsPending().ToList();
             var tasks = pendingBookings.Select(booking => ProcessBookingAsync(booking, stoppingToken));
-            await Task.WhenAll(tasks); 
-            await Task.Delay(PollingIntervalMs, stoppingToken); 
+            await Task.WhenAll(tasks);
+            await Task.Delay(PollingIntervalMs, stoppingToken);
 
         }
     }
@@ -24,13 +25,13 @@ public class BookingBackgroundService(IBookingStore bookingStore,IEventStore eve
     private async Task ProcessBookingAsync(Booking booking, CancellationToken stoppingToken)
     {
         await Task.Delay(ProcessingDelayMs, stoppingToken);
-        
-        Event? @event = null;   
-        
+
+        Event? @event = null;
+
         await _processingSemaphore.WaitAsync(stoppingToken);
         try
         {
-            @event = eventStore.Get(booking.EventId);     
+            @event = eventStore.Get(booking.EventId);
             if (@event is not null)
             {
                 booking.Confirm();
@@ -38,10 +39,10 @@ public class BookingBackgroundService(IBookingStore bookingStore,IEventStore eve
             }
             else
             {
-                booking.Reject();                                                                
+                booking.Reject();
                 logger.LogWarning("Booking {BookingId} not found , rejecting", booking.Id);
             }
-            bookingStore.UpdateBooking(booking); 
+            bookingStore.UpdateBooking(booking);
 
         }
         catch (OperationCanceledException)
@@ -50,16 +51,19 @@ public class BookingBackgroundService(IBookingStore bookingStore,IEventStore eve
         }
         catch (Exception e)
         {
-            booking.Reject();                                                            
-            @event?.ReleaseSeats();                                                      
-            bookingStore.UpdateBooking(booking);                                         
-            logger.LogError(e, "Unexpected error while processing booking {BookingId}",  
-                booking.Id);   
+            if (booking.Status != BookingStatus.Confirmed)
+            {
+                booking.Reject();
+                @event?.ReleaseSeats();
+                bookingStore.UpdateBooking(booking);
+            }
+            logger.LogError(e, "Unexpected error while processing booking {BookingId}",
+                booking.Id);
         }
         finally
         {
-            _processingSemaphore.Release();  
+            _processingSemaphore.Release();
         }
-        
+
     }
 }
