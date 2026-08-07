@@ -27,10 +27,13 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
         await Task.Delay(ProcessingDelayMs, stoppingToken);
 
         Event? @event = null;
+        var acquired = false;
 
-        await _processingSemaphore.WaitAsync(stoppingToken);
         try
         {
+            await _processingSemaphore.WaitAsync(stoppingToken);
+            acquired = true;
+
             @event = eventStore.Get(booking.EventId);
             if (@event is not null)
             {
@@ -51,7 +54,7 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
         }
         catch (Exception e)
         {
-            if (booking.Status != BookingStatus.Confirmed)
+            if (acquired && booking.Status != BookingStatus.Confirmed)
             {
                 booking.Reject();
                 @event?.ReleaseSeats();
@@ -62,7 +65,7 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
         }
         finally
         {
-            _processingSemaphore.Release();
+            if (acquired) _processingSemaphore.Release();
         }
 
     }
