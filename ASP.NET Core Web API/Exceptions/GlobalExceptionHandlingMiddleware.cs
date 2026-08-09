@@ -25,6 +25,7 @@ public class GlobalExceptionHandlingMiddleware : IExceptionHandler
         {
             ValidationException => StatusCodes.Status400BadRequest,
             NotFoundException => StatusCodes.Status404NotFound,
+            NoAvailableSeatsException => StatusCodes.Status409Conflict,
 
             _ => StatusCodes.Status500InternalServerError
         };
@@ -33,7 +34,7 @@ public class GlobalExceptionHandlingMiddleware : IExceptionHandler
         {
             Status = statusCode,
             Detail = statusCode == StatusCodes.Status500InternalServerError ?
-                "Произошла непредвиденная ошибка"
+                "An unexpected error occurred"
                 : exception.Message
         };
         //  4. httpContext.Response.StatusCode = ...

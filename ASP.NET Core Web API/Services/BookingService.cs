@@ -1,29 +1,41 @@
-﻿using ASP.NET_Core_Web_API.DataAccess;
+using ASP.NET_Core_Web_API.DataAccess;
+using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
+
 namespace ASP.NET_Core_Web_API.Services;
 
-public class BookingService (IBookingStore bookingStore,IEventService eventService) : IBookingService 
+public class BookingService(IBookingStore bookingStore, IEventService eventService) : IBookingService
 {
+    private readonly object _bookingLock = new();
 
-  
-    public Task<Booking?>  CreateBookingAsync(Guid eventId)
+    public Task<Booking> CreateBookingAsync(Guid eventId)
     {
-        if (eventService.GetEventById(eventId) is null) return Task.FromResult<Booking?>(null);
-        var result = new Booking
+        var @event = eventService.GetEventById(eventId);
+        lock (_bookingLock)
         {
-            Id = Guid.NewGuid(),
-            EventId = eventId,
-            Status = BookingStatus.Pending,
-            CreatedAt = DateTime.Now
-        };
-        bookingStore.AddBooking(result);
-        return Task.FromResult(result);
+
+            if (!@event.TryReserveSeats())
+                throw new NoAvailableSeatsException("No available seats for this event");
+
+            var booking = new Booking
+            {
+                EventId = eventId,
+                Status = BookingStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            bookingStore.AddBooking(booking);
+
+            return Task.FromResult(booking);
+        }
 
     }
 
-    public Task<Booking?>  GetBookingByIdAsync(Guid bookingId)
+    public Task<Booking> GetBookingByIdAsync(Guid bookingId)
     {
-        var result = bookingStore.GetBooking(bookingId);
-        return Task.FromResult(result);
+        var booking = bookingStore.GetBooking(bookingId);
+        if (booking is null) throw new NotFoundException($"Booking with id {bookingId} not found");
+
+        return Task.FromResult(booking);
     }
 }

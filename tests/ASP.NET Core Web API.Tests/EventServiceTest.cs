@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using ASP.NET_Core_Web_API.DataAccess;
+using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 using ASP.NET_Core_Web_API.Services;
 
@@ -5,88 +8,131 @@ namespace ASP.NET_Core_Web_API.Tests;
 
 public class EventServiceTests
 {
-    private static Event CreateEvent(
+    private static Event CreateTestEvent(
+        IEventService service,
         string title = "Test Event",
         DateTime? startAt = null,
-        DateTime? endAt = null)
+        DateTime? endAt = null,
+        int totalSeats = 10)
     {
-        return new Event
-        {
-            Title = title,
-            StartAt = startAt ?? DateTime.UtcNow,
-            EndAt = endAt ?? DateTime.UtcNow.AddHours(2)
-        };
+        return service.CreateEvent(
+            title,
+            null,
+            startAt ?? DateTime.UtcNow,
+            endAt ?? DateTime.UtcNow.AddHours(2),
+            totalSeats);
     }
 
+    private static List<Event> SampleEvents(IEventService service) =>
+    [
+        CreateTestEvent(service, title: "Null Meeting", startAt: new DateTime(2026, 1, 10), endAt: new DateTime(2026, 1, 10, 11, 0, 0)),
+        CreateTestEvent(service, title: "Conference", startAt: new DateTime(2026, 2, 1), endAt: new DateTime(2026, 2, 3)),
+        CreateTestEvent(service, title: "Daily meeting", startAt: new DateTime(2026, 3, 5), endAt: new DateTime(2026, 3, 5, 9, 30, 0)),
+        CreateTestEvent(service, title: "Daily StandUp", startAt: new DateTime(2026, 3, 6), endAt: new DateTime(2026, 3, 6, 9, 15, 0)),
+        CreateTestEvent(service, title: "Evryday routine", startAt: new DateTime(2026, 4, 1), endAt: new DateTime(2026, 4, 1, 8, 0, 0)),
+        CreateTestEvent(service, title: "Parents mEetInG", startAt: new DateTime(2026, 5, 15), endAt: new DateTime(2026, 5, 15, 18, 0, 0)),
+        CreateTestEvent(service, title: "meeting", startAt: new DateTime(2026, 6, 20), endAt: new DateTime(2026, 6, 20, 10, 0, 0))
+    ];
+
     [Fact]
-    public void CreateEvent_AssignsUniqueId()
+    public void CreateEvent_AssignsUniqueIds()
     {
-        // Arrange
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
+        var first = CreateTestEvent(service, title: "First Event");
+        var second = CreateTestEvent(service, title: "Second Event");
 
-        // Act
-        var first = service.CreateEvent(CreateEvent(title: "First Event"));
-        var second = service.CreateEvent(CreateEvent(title: "Second Event"));
-
-        // Assert
         Assert.NotEqual(Guid.Empty, first.Id);
         Assert.NotEqual(Guid.Empty, second.Id);
         Assert.NotEqual(first.Id, second.Id);
     }
 
     [Fact]
-    public void GetEventById_ReturnsNull_WhenNotFound()
+    public void CreateEvent_Throws_WhenTotalSeatsIsNotPositive()
     {
-        // Arrange
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
 
-        // Act
-        var result = service.GetEventById(Guid.NewGuid());
-
-        // Assert
-        Assert.Null(result);
+        Assert.Throws<ValidationException>(() =>
+            service.CreateEvent("Invalid Event", null, DateTime.UtcNow, DateTime.UtcNow.AddHours(1), 0));
     }
 
     [Fact]
-    public void GetEventById_ReturnsEvent_WhenExists()
+    public void CreateEvent_SetsAvailableSeatsEqualToTotalSeats()
     {
-        // Arrange
-        var service = new EventService();
-        var created = service.CreateEvent(CreateEvent(title: "Null Meeting"));
+        var service = new EventService(new InMemoryEventStore());
+        var created = CreateTestEvent(service, totalSeats: 5);
 
-        // Act
-        var result = service.GetEventById(created.Id);
+        Assert.Equal(5, created.TotalSeats);
+        Assert.Equal(5, created.AvailableSeats);
+    }
 
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(created.Id, result.Id);
+    [Fact]
+    public void GetEventById_ReturnException_WhenNotFound()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        Assert.Throws<NotFoundException>(() => service.GetEventById(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void GetEventById_ReturnEvent()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        var events = SampleEvents(service);
+
+        var result = service.GetEventById(events[0].Id);
+
+        Assert.Equal(events[0].Id, result.Id);
         Assert.Equal("Null Meeting", result.Title);
     }
 
     [Fact]
-    public void GetEvents_ReturnsAllCreatedEvents()
+    public void GetEvents_ReturnAllEvents_WhenEmptyFilters()
     {
-        // Arrange
-        var service = new EventService();
-        service.CreateEvent(CreateEvent(title: "First"));
-        service.CreateEvent(CreateEvent(title: "Second"));
-        service.CreateEvent(CreateEvent(title: "Third"));
+        var service = new EventService(new InMemoryEventStore());
+        SampleEvents(service);
 
-        // Act
-        var result = service.GetEvents();
+        var result = service.GetEvents(null, null, null);
+        Assert.Equal(7, result.TotalCount);
+    }
 
-        // Assert
-        Assert.Equal(3, result.Count);
+    [Fact]
+    public void GetEvents_FiltersByTitle_IgnoreCase()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        SampleEvents(service);
+
+        var result = service.GetEvents("meeting", null, null);
+
+        Assert.Equal(4, result.TotalCount);
+    }
+
+    [Fact]
+    public void GetEvents_FiltersByDateRange()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        SampleEvents(service);
+
+        var result = service.GetEvents(null, new DateTime(2026, 1, 1), new DateTime(2026, 4, 1));
+
+        Assert.Equal(4, result.TotalCount);
+    }
+
+    [Fact]
+    public void GetEvents_FiltersByTitleAndDateRange_IgnoreCase()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        SampleEvents(service);
+
+        var result = service.GetEvents("MEETING", new DateTime(2026, 1, 1), new DateTime(2026, 4, 1));
+
+        Assert.Equal(2, result.TotalCount);
     }
 
     [Fact]
     public void UpdateEvent_UpdatesExistingEvent()
     {
-        // Arrange
-        var service = new EventService();
-        var created = service.CreateEvent(CreateEvent(title: "Original Title"));
+        var service = new EventService(new InMemoryEventStore());
+        var created = CreateTestEvent(service, title: "Original Title");
 
-        // Act
         var updated = service.UpdateEvent(new Event
         {
             Id = created.Id,
@@ -96,8 +142,6 @@ public class EventServiceTests
             EndAt = new DateTime(2026, 7, 2)
         });
 
-        // Assert
-        Assert.NotNull(updated);
         Assert.Equal(created.Id, updated.Id);
         Assert.Equal("Updated Title", updated.Title);
         Assert.Equal("Updated description", updated.Description);
@@ -106,49 +150,65 @@ public class EventServiceTests
     }
 
     [Fact]
-    public void UpdateEvent_ReturnsNull_WhenNotFound()
+    public void UpdateEvent_Throws_WhenNotFound()
     {
-        // Arrange
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
 
-        // Act
-        var result = service.UpdateEvent(new Event
+        Assert.Throws<NotFoundException>(() => service.UpdateEvent(new Event
         {
             Id = Guid.NewGuid(),
             Title = "Doesn't matter",
             StartAt = DateTime.UtcNow,
             EndAt = DateTime.UtcNow.AddHours(1)
-        });
-
-        // Assert
-        Assert.Null(result);
+        }));
     }
 
     [Fact]
     public void DeleteEvent_RemovesExistingEvent()
     {
-        // Arrange
-        var service = new EventService();
-        var created = service.CreateEvent(CreateEvent());
+        var service = new EventService(new InMemoryEventStore());
+        var created = CreateTestEvent(service);
 
-        // Act
         var result = service.DeleteEvent(created.Id);
 
-        // Assert
         Assert.True(result);
-        Assert.Null(service.GetEventById(created.Id));
+        Assert.Throws<NotFoundException>(() => service.GetEventById(created.Id));
     }
 
     [Fact]
-    public void DeleteEvent_ReturnsFalse_WhenNotFound()
+    public void DeleteEvent_Throws_WhenNotFound()
     {
-        // Arrange
-        var service = new EventService();
+        var service = new EventService(new InMemoryEventStore());
 
-        // Act
-        var result = service.DeleteEvent(Guid.NewGuid());
+        Assert.Throws<NotFoundException>(() => service.DeleteEvent(Guid.NewGuid()));
+    }
 
-        // Assert
-        Assert.False(result);
+    [Fact]
+    public void GetEvents_ReturnsCorrectPage()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        SampleEvents(service);
+
+        var result = service.GetEvents(null, null, null, page: 2, pageSize: 3);
+
+        Assert.Equal(7, result.TotalCount);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(3, result.PageSize);
+        Assert.Equal(3, result.Items.Count);
+        Assert.Equal("Daily StandUp", result.Items[0].Title);
+        Assert.Equal("Parents mEetInG", result.Items[2].Title);
+    }
+
+    [Fact]
+    public void GetEvents_ReturnsPartialLastPage()
+    {
+        var service = new EventService(new InMemoryEventStore());
+        SampleEvents(service);
+
+        var result = service.GetEvents(null, null, null, page: 3, pageSize: 3);
+
+        Assert.Equal(7, result.TotalCount);
+        Assert.Single(result.Items);
+        Assert.Equal("meeting", result.Items[0].Title);
     }
 }
