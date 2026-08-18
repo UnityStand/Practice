@@ -222,7 +222,7 @@ public class BookingTests
     [Fact]
     public void Confirm_SetsStatusConfirmedAndProcessedAt()
     {
-        var booking = new Booking { Status = BookingStatus.Pending };
+        var booking = Booking.Create(Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
 
         booking.Confirm();
 
@@ -233,7 +233,7 @@ public class BookingTests
     [Fact]
     public void Reject_SetsStatusRejectedAndProcessedAt()
     {
-        var booking = new Booking { Status = BookingStatus.Pending };
+        var booking = Booking.Create(Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
 
         booking.Reject();
 
@@ -248,8 +248,8 @@ public class InMemoryBookingStoreTests
     public void GetBookingsPending_ExcludesConfirmedBookings()
     {
         var store = new InMemoryBookingStore();
-        var pending = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
-        var confirmed = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Confirmed, CreatedAt = DateTime.UtcNow };
+        var pending = Booking.Create(Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var confirmed = Booking.Create(Guid.NewGuid(), BookingStatus.Confirmed, DateTime.UtcNow);
         store.AddBooking(pending);
         store.AddBooking(confirmed);
 
@@ -263,7 +263,7 @@ public class InMemoryBookingStoreTests
     public void UpdateBooking_PersistsStatusChange()
     {
         var store = new InMemoryBookingStore();
-        var booking = new Booking { EventId = Guid.NewGuid(), Status = BookingStatus.Pending, CreatedAt = DateTime.UtcNow };
+        var booking = Booking.Create(Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
         store.AddBooking(booking);
 
         booking.Status = BookingStatus.Rejected;

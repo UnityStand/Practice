@@ -49,14 +49,12 @@ public class EventService(IEventStore eventStore) : IEventService
         return eventStore.Add(newEvent);
     }
 
-    public Event UpdateEvent(Event updatedEvent)
+    public Event UpdateEvent(Guid id, string title, string? description, DateTime startAt,DateTime endAt)
     {
-        var existingEvent = FindEventOrThrow(updatedEvent.Id);
-
-        existingEvent.Title = updatedEvent.Title;
-        existingEvent.Description = updatedEvent.Description;
-        existingEvent.StartAt = updatedEvent.StartAt;
-        existingEvent.EndAt = updatedEvent.EndAt;
+        
+        var existingEvent = FindEventOrThrow(id);
+        
+        existingEvent.UpdateInfo(title, description, startAt, endAt);
 
         return existingEvent;
     }

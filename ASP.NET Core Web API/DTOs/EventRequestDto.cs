@@ -2,7 +2,7 @@
 
 namespace ASP.NET_Core_Web_API.DTOs;
 
-public class EventInfoDto
+public class EventRequestDto
 {
     [Required][MinLength(1)] public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }

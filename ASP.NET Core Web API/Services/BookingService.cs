@@ -1,4 +1,4 @@
-using ASP.NET_Core_Web_API.DataAccess;
+﻿using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
 
@@ -16,13 +16,7 @@ public class BookingService(IBookingStore bookingStore, IEventService eventServi
 
             if (!@event.TryReserveSeats())
                 throw new NoAvailableSeatsException("No available seats for this event");
-
-            var booking = new Booking
-            {
-                EventId = eventId,
-                Status = BookingStatus.Pending,
-                CreatedAt = DateTime.UtcNow
-            };
+            var booking = Booking.Create(eventId, BookingStatus.Pending, DateTime.UtcNow);
 
             bookingStore.AddBooking(booking);
 

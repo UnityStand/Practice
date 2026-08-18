@@ -133,14 +133,12 @@ public class EventServiceTests
         var service = new EventService(new InMemoryEventStore());
         var created = CreateTestEvent(service, title: "Original Title");
 
-        var updated = service.UpdateEvent(new Event
-        {
-            Id = created.Id,
-            Title = "Updated Title",
-            Description = "Updated description",
-            StartAt = new DateTime(2026, 7, 1),
-            EndAt = new DateTime(2026, 7, 2)
-        });
+        var updated = service.UpdateEvent(
+            created.Id,
+            "Updated Title",
+            "Updated description",
+            new DateTime(2026, 7, 1),
+            new DateTime(2026, 7, 2));
 
         Assert.Equal(created.Id, updated.Id);
         Assert.Equal("Updated Title", updated.Title);
@@ -154,13 +152,12 @@ public class EventServiceTests
     {
         var service = new EventService(new InMemoryEventStore());
 
-        Assert.Throws<NotFoundException>(() => service.UpdateEvent(new Event
-        {
-            Id = Guid.NewGuid(),
-            Title = "Doesn't matter",
-            StartAt = DateTime.UtcNow,
-            EndAt = DateTime.UtcNow.AddHours(1)
-        }));
+        Assert.Throws<NotFoundException>(() => service.UpdateEvent(
+            Guid.NewGuid(),
+            "Doesn't matter",
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow.AddHours(1)));
     }
 
     [Fact]
