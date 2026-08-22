@@ -4,7 +4,7 @@ using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-public class BookingService(IBookingStore bookingStore, IEventService eventService) : IBookingService
+internal class BookingService(IBookingStore bookingStore, IEventService eventService) : IBookingService
 {
     private readonly object _bookingLock = new();
 

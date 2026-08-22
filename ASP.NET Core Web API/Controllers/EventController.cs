@@ -23,33 +23,33 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpGet("{eventId:Guid}")]
-    public ActionResult<Event> GetEvent(Guid eventId)
+    public async Task<ActionResult<Event>> GetEvent(Guid eventId)
     {
-        var ev = eventService.GetEventById(eventId);
+        var ev = await eventService.GetEventById(eventId);
         return Ok(EventResponseDto.FromEntity(ev));
     }
 
     [HttpPost]
-    public IActionResult PostEvent(CreateEventDto createEventDto)
+    public async Task<IActionResult> PostEvent(CreateEventDto createEventDto)
     {
 
-        var newEvent = eventService.CreateEvent(createEventDto.Title, createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
+        var newEvent = await eventService.CreateEvent(createEventDto.Title, createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
         return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, EventResponseDto.FromEntity(newEvent));
     }
 
     [HttpPut("{eventId:Guid}")]
-    public IActionResult PutEvent(Guid eventId, EventRequestDto dto)
+    public async Task<IActionResult> PutEvent(Guid eventId, EventRequestDto dto)
     {
 
-        var result = eventService.UpdateEvent(eventId, dto.Title, dto.Description, dto.StartAt, dto.EndAt);
+        var result = await eventService.UpdateEvent(eventId, dto.Title, dto.Description, dto.StartAt, dto.EndAt);
         
         return Ok(EventResponseDto.FromEntity(result));
     }
 
     [HttpDelete("{eventId:Guid}")]
-    public IActionResult DeleteEvent(Guid eventId)
+    public async Task<IActionResult> DeleteEvent(Guid eventId)
     {
-        eventService.DeleteEvent(eventId);
+        await eventService.DeleteEvent(eventId);
         return NoContent();
     }
     
