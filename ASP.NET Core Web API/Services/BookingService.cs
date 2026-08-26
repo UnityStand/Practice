@@ -4,32 +4,34 @@ using ASP.NET_Core_Web_API.Models;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-internal class BookingService(IBookingStore bookingStore, IEventService eventService) : IBookingService
+internal class BookingService(AppDbContext context) : IBookingService
 {
-    private readonly object _bookingLock = new();
+    private static readonly SemaphoreSlim _bookingLock = new(1, 1);
+    public async Task<Booking> CreateBookingAsync(Guid eventId)
+    {   await _bookingLock.WaitAsync();
 
-    public Task<Booking> CreateBookingAsync(Guid eventId)
-    {
-        var @event = eventService.GetEventById(eventId);
-        lock (_bookingLock)
+        try
         {
-
-            if (!@event.TryReserveSeats())
-                throw new NoAvailableSeatsException("No available seats for this event");
+            var @event = await context.Events.FindAsync(eventId);
+            if (@event == null) throw new NotFoundException($"Event with id {eventId} not found");
+            if (!@event.TryReserveSeats()) throw new NoAvailableSeatsException("No available seats for this event");
             var booking = Booking.Create(eventId, BookingStatus.Pending, DateTime.UtcNow);
+            context.Bookings.Add(booking);
+            await context.SaveChangesAsync();
+            return booking;
 
-            bookingStore.AddBooking(booking);
-
-            return Task.FromResult(booking);
+        }
+        finally
+        {
+            _bookingLock.Release();      
         }
 
+        
     }
 
-    public Task<Booking> GetBookingByIdAsync(Guid bookingId)
+    public async Task<Booking> GetBookingByIdAsync(Guid bookingId)
     {
-        var booking = bookingStore.GetBooking(bookingId);
-        if (booking is null) throw new NotFoundException($"Booking with id {bookingId} not found");
-
-        return Task.FromResult(booking);
+        var booking = await context.Bookings.FindAsync(bookingId);
+        return booking ?? throw new NotFoundException($"Booking with id {bookingId} not found");
     }
 }

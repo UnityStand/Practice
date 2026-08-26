@@ -17,7 +17,7 @@ public class Booking
     {
         return new Booking
         {
-            
+            Id=Guid.NewGuid(),
             EventId = eventId,
             Status = status,
             CreatedAt = createdAt,

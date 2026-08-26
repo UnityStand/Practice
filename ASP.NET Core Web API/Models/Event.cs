@@ -25,6 +25,7 @@ public class Event
 
         return new Event
         {
+            Id =  Guid.NewGuid(),
             Description = description,
             Title = title,
             TotalSeats = totalSeats,

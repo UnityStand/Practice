@@ -10,9 +10,9 @@ namespace ASP.NET_Core_Web_API.Controllers;
 public class EventController(IEventService eventService) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<PaginatedResult<EventResponseDto>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
+    public async Task <ActionResult<PaginatedResult<EventResponseDto>>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
-        var result = eventService.GetEvents(title, from, to, page, pageSize);
+        var result = await eventService.GetEvents(title, from, to, page, pageSize);
         return new PaginatedResult<EventResponseDto>
         {
             TotalCount = result.TotalCount,

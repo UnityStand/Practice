@@ -12,12 +12,10 @@ internal class EventService(AppDbContext context) : IEventService
     private async Task<Event> FindEventOrThrow(Guid id)
     {
         var result = await context.Events.FindAsync(id);
-        if (result == null) throw new NotFoundException($"Event with id {id} not found");
-
-        return  result;
+        return result ?? throw new NotFoundException($"Event with id {id} not found");
     }
 
-    public PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
+    public async Task<PaginatedResult<Event>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
         var query =  context.Events.AsQueryable();  
         if (!string.IsNullOrWhiteSpace(title))
@@ -26,8 +24,8 @@ internal class EventService(AppDbContext context) : IEventService
             query = query.Where(e => e.StartAt >= from);
         if (to != null)
             query = query.Where(e => e.EndAt <= to);
-        var total = query.Count();
-        var items = query.OrderBy(e => e.StartAt).Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var total = await query.CountAsync();
+        var items = await query.OrderBy(e => e.StartAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return new PaginatedResult<Event>
         {
             TotalCount = total,
@@ -56,7 +54,8 @@ internal class EventService(AppDbContext context) : IEventService
     {
         
         var existingEvent = await FindEventOrThrow(id);
-        context.Events.Add(existingEvent);
+        existingEvent.UpdateInfo(title, description, startAt, endAt);
+     
         await context.SaveChangesAsync(); 
         
         return existingEvent;
@@ -65,8 +64,8 @@ internal class EventService(AppDbContext context) : IEventService
     public async Task<bool> DeleteEvent(Guid id)
     {
         var existingEvent = await FindEventOrThrow(id);
-        if (context.Bookings.AnyAsync(b =>
-                b.EventId == id) != null) throw new NoAvailableSeatsException("Cannot delete event");
+        if (await context.Bookings.AnyAsync(b =>
+                b.EventId == id)) throw new EventHasBookingsException("Cannot delete event with active bookings");
         context.Events.Remove(existingEvent);
         await context.SaveChangesAsync(); 
         
