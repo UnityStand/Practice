@@ -10,9 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
-builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
 builder.Services.AddScoped<IEventService, EventService>();
-builder.Services.AddSingleton<IBookingStore, InMemoryBookingStore>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddHostedService<BookingBackgroundService>();
 builder.Services.AddProblemDetails();
@@ -23,6 +21,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var app = builder.Build();
 
 app.UseExceptionHandler();
+using (var scope = app.Services.CreateScope())                                                                                     
+{                                                                                                                                  
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();                                                             
+    db.Database.EnsureCreated();                                                                                                   
+}  
 
 if (app.Environment.IsDevelopment())
 {
@@ -32,6 +35,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapControllers();
-
+app.UseExceptionHandler();      
 app.Run();
 
