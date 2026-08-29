@@ -66,7 +66,7 @@ internal class EventService(AppDbContext context) : IEventService
     {
         var existingEvent = await FindEventOrThrow(id);
         if (await context.Bookings.AnyAsync(b =>
-                b.EventId == id)) throw new EventHasBookingsException("Cannot delete event with active bookings");
+                b.EventId == id)) throw new EventHasBookingsException("Cannot delete event with any bookings");
         context.Events.Remove(existingEvent);
         await context.SaveChangesAsync();
 

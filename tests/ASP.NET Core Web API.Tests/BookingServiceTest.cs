@@ -11,6 +11,7 @@ namespace ASP.NET_Core_Web_API.Tests;
 public class BookingServiceTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
+    private readonly List<IServiceScope> _scopes = [];
 
     public BookingServiceTests()
     {
@@ -22,13 +23,29 @@ public class BookingServiceTests : IDisposable
         _serviceProvider = services.BuildServiceProvider();
     }
 
-    public void Dispose() => _serviceProvider.Dispose();
+    public void Dispose()
+    {
+        foreach (var scope in _scopes)
+            scope.Dispose();
+        _serviceProvider.Dispose();
+    }
 
+    private IServiceScope CreateScope()
+    {
+        var scope = _serviceProvider.CreateScope();
+        _scopes.Add(scope);
+        return scope;
+    }
+
+    // Каждый вызов намеренно возвращает сервис из НОВОГО scope (свежий DbContext без
+    // закешированных сущностей в change tracker) — часть тестов пишет в БД напрямую через
+    // отдельный scope в обход сервиса, и переиспользование одного и того же DbContext
+    // маскировало бы эти изменения устаревшими данными из локального кеша.
     private IEventService CreateEventService() =>
-        _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IEventService>();
+        CreateScope().ServiceProvider.GetRequiredService<IEventService>();
 
     private IBookingService CreateBookingService() =>
-        _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IBookingService>();
+        CreateScope().ServiceProvider.GetRequiredService<IBookingService>();
 
     private async Task<Event> CreateTestEvent(string title = "Test Event", int totalSeats = 10)
     {

@@ -42,7 +42,7 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var booking = await context.Bookings.FindAsync(bookingId);
-            if (booking is null || booking.Status == BookingStatus.Confirmed) return;
+            if (booking is null || booking.Status != BookingStatus.Pending) return;
 
             booking.Reject();
             var @event = await context.Events.FindAsync(booking.EventId);
@@ -71,7 +71,7 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var booking = await context.Bookings.FindAsync(bookingId);
-            if (booking is null) return;
+            if (booking is null || booking.Status != BookingStatus.Pending) return;
 
             var @event = await context.Events.FindAsync(booking.EventId);
             if (@event is not null)
@@ -82,7 +82,7 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
             else
             {
                 booking.Reject();
-                logger.LogWarning("Booking {BookingId} not found , rejecting", booking.Id);
+                logger.LogWarning("Event {@event} is null , rejecting", booking.Id);
             }
             await context.SaveChangesAsync(stoppingToken);
 

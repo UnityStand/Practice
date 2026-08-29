@@ -23,7 +23,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpGet("{eventId:Guid}")]
-    public async Task<ActionResult<Event>> GetEvent(Guid eventId)
+    public async Task<ActionResult<EventResponseDto>> GetEvent(Guid eventId)
     {
         var ev = await eventService.GetEventById(eventId);
         return Ok(EventResponseDto.FromEntity(ev));

@@ -11,6 +11,7 @@ namespace ASP.NET_Core_Web_API.Tests;
 public class EventServiceTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
+    private readonly List<IServiceScope> _scopes = [];
 
     public EventServiceTests()
     {
@@ -21,10 +22,23 @@ public class EventServiceTests : IDisposable
         _serviceProvider = services.BuildServiceProvider();
     }
 
-    public void Dispose() => _serviceProvider.Dispose();
+    public void Dispose()
+    {
+        foreach (var scope in _scopes)
+            scope.Dispose();
+        _serviceProvider.Dispose();
+    }
 
-    private IEventService CreateEventService() =>
-        _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IEventService>();
+    // Каждый вызов намеренно возвращает сервис из НОВОГО scope (свежий DbContext без
+    // закешированных сущностей в change tracker) — часть тестов пишет в БД напрямую через
+    // отдельный scope в обход сервиса, и переиспользование одного и того же DbContext
+    // маскировало бы эти изменения устаревшими данными из локального кеша.
+    private IEventService CreateEventService()
+    {
+        var scope = _serviceProvider.CreateScope();
+        _scopes.Add(scope);
+        return scope.ServiceProvider.GetRequiredService<IEventService>();
+    }
 
     private static async Task<Event> CreateTestEvent(
         IEventService service,
@@ -208,6 +222,24 @@ public class EventServiceTests : IDisposable
         {
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             context.Bookings.Add(Booking.Create(created.Id, BookingStatus.Pending, DateTime.UtcNow));
+            await context.SaveChangesAsync();
+        }
+
+        await Assert.ThrowsAsync<EventHasBookingsException>(() => service.DeleteEvent(created.Id));
+    }
+
+    [Fact]
+    public async Task DeleteEvent_Throws_WhenEventHasOnlyRejectedBooking()
+    {
+        var service = CreateEventService();
+        var created = await CreateTestEvent(service);
+
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var booking = Booking.Create(created.Id, BookingStatus.Pending, DateTime.UtcNow);
+            booking.Reject();
+            context.Bookings.Add(booking);
             await context.SaveChangesAsync();
         }
 
