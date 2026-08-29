@@ -10,15 +10,15 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
     {
         builder.ToTable("Events");
         builder.HasKey(e => e.Id);
-        
+
         builder.Property(e => e.Id).ValueGeneratedNever();
         builder.Property(e => e.Title).
             HasMaxLength(100).
             IsRequired();
         builder.Property(e => e.Description)
             .HasMaxLength(2000);
-        builder.Property(e => e.StartAt).IsRequired();
-        builder.Property(e => e.EndAt).IsRequired();
+        builder.Property(e => e.StartAt).IsRequired().HasColumnType("timestamp with time zone");
+        builder.Property(e => e.EndAt).IsRequired().HasColumnType("timestamp with time zone");
         builder.Property(e => e.TotalSeats).IsRequired();
         builder.Property(e => e.AvailableSeats).IsRequired();
     }

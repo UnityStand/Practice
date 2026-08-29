@@ -1,10 +1,25 @@
 # Event & Booking API
 
-Простой REST API для управления событиями и бронированием мест на них. Данные хранятся в памяти приложения (`InMemoryEventStore`, `InMemoryBookingStore`) — при перезапуске сбрасываются.
+Простой REST API для управления событиями и бронированием мест на них. Данные хранятся в PostgreSQL через EF Core (`AppDbContext`) — состояние переживает перезапуск приложения.
 
 ## Требования
 
 - .NET SDK 10.0
+- PostgreSQL (локально или в контейнере)
+
+## Настройка строки подключения
+
+Строка подключения задаётся в `ASP.NET Core Web API/appsettings.json`:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=eventapi;Username=postgres;Password=postgres"
+  }
+}
+```
+
+Поправь `Host`/`Port`/`Username`/`Password` под свой инстанс PostgreSQL (или удобнее — через `appsettings.Development.json` / переменные окружения, чтобы не коммитить реальные креды).
 
 ## Запуск
 
@@ -14,6 +29,8 @@ cd Practice
 dotnet build "ASP.NET Core Web API"
 dotnet run --project "ASP.NET Core Web API"
 ```
+
+Схема базы данных (таблицы `events`, `bookings`) создаётся автоматически при первом запуске через `Database.EnsureCreated()` в `Program.cs` — отдельно накатывать миграции не нужно. `EnsureCreated` ничего не делает при повторных запусках, если схема уже существует, но **не совместим с EF Core миграциями** — если в будущем понадобятся миграции, БД нужно будет пересоздать или заменить `EnsureCreated()` на `Migrate()`.
 
 ## Swagger
 
@@ -93,8 +110,9 @@ GET /events?title=стендап&page=2&pageSize=5
 ## Валидация
 
 - `Title`, `StartAt`, `EndAt`, `TotalSeats` обязательны, `Title` не может быть пустой строкой.
-- `EndAt` должен быть строго позже `StartAt` (равенство тоже считается ошибкой) — проверяется на входе, в `CreateEventDto`/`EventInfoDto` (`IValidatableObject`), до вызова контроллера.
+- `EndAt` должен быть строго позже `StartAt` (равенство тоже считается ошибкой) — проверяется дважды: на входе, в `CreateEventDto`/`EventRequestDto` (`IValidatableObject`, дешёвый `400` без похода в БД), и в самой доменной модели (`Event.Create(...)`/`Event.UpdateInfo(...)`), которая гарантирует инвариант независимо от того, откуда её вызвали.
 - `TotalSeats` должен быть больше нуля — эту проверку выполняет сама доменная модель, `Event.Create(...)`, и бросает `ValidationException`, если условие нарушено. Это гарантирует инвариант, даже если `Event` создаётся в обход HTTP-запроса (например, из тестов).
+- Ответы API (`EventResponseDto`) отделены от доменной модели `Event` — контроллер никогда не сериализует сущность напрямую. Это не просто стиль: у `Event` есть навигационное свойство `Bookings`, а у `Booking` — обратная ссылка `Event`, и сериализация сущности напрямую привела бы к циклической ссылке в JSON.
 
 ## Модель Booking
 
@@ -127,15 +145,27 @@ GET /events?title=стендап&page=2&pageSize=5
 }
 ```
 
+## База данных и EF Core
+
+Данные хранятся в PostgreSQL через `AppDbContext` (`DataAccess/AppDbContext.cs`). Маппинг сущностей на таблицы описан через Fluent API в `DataAccess/Configurations/EventConfiguration.cs`/`BookingConfiguration.cs`:
+
+- `Id` у обеих сущностей — `ValueGeneratedNever()`: идентификатор генерируется в коде (в `Event.Create(...)`/`Booking.Create(...)`), а не базой данных.
+- `Booking.Status` (enum) хранится в БД как строка (`HasConversion<string>()`), а не как число — это защищает существующие данные от порчи, если порядок значений `BookingStatus` когда-нибудь изменится.
+- Связь `Event` → `Booking` (один-ко-многим) настроена с `OnDelete(DeleteBehavior.Restrict)`: удалить событие с активными бронями нельзя — `EventService.DeleteEvent` сначала проверяет `context.Bookings.AnyAsync(...)` и бросает `EventHasBookingsException` (`409 Conflict`), не давая базе самой отказать менее понятной ошибкой нарушения внешнего ключа.
+
+`Event`/`Booking` — приватные конструкторы без параметров (нужны EF Core для создания объектов через рефлексию при чтении из БД) плюс публичные статические фабрики `Create(...)` с валидацией инвариантов. Внешний код не может создать эти сущности через `new` напрямую.
+
 ## Синхронизация и защита от гонок
 
-В проекте два разных примитива синхронизации — под два разных сценария.
+В проекте два разных примитива синхронизации — под два разных сценария. Оба — `static SemaphoreSlim`, а не `lock`: `EventService`/`BookingService` зарегистрированы как `Scoped` (так как `AppDbContext` — `Scoped`), а значит каждый HTTP-запрос получает свой экземпляр сервиса — обычное (не `static`) поле-семафор в этих условиях защищало бы только само себя, а не запросы друг от друга.
 
-**`lock` в `BookingService.CreateBookingAsync`.** Без защиты возможен overbooking: два параллельных запроса одновременно проверяют `AvailableSeats > 0`, оба видят "места есть" и оба создают бронь — в сумме броней окажется больше, чем мест. `lock` оборачивает атомарную пару «проверка мест (`TryReserveSeats`) + создание брони», так что в любой момент времени через неё проходит только один поток. Важно: `BookingService` зарегистрирован как `AddSingleton` — при `AddScoped` каждый запрос получал бы свой экземпляр сервиса со своим собственным `lock`-объектом, и блокировка не защищала бы вообще ничего.
+**`static SemaphoreSlim(1, 1)` в `BookingService.CreateBookingAsync`.** Без защиты возможен overbooking: два параллельных запроса одновременно проверяют `AvailableSeats > 0`, оба видят "места есть" и оба создают бронь — в сумме броней окажется больше, чем мест. Семафор с ёмкостью 1 — взаимоисключающая секция (аналог `lock`, но с `await` внутри, что для обычного `lock` запрещено компилятором): `WaitAsync()`/`Release()` в `try/finally` вокруг «проверка мест (`TryReserveSeats`) + создание брони + `SaveChangesAsync()`».
 
-**`SemaphoreSlim` в `BookingBackgroundService.ProcessBookingAsync`.** Фоновый сервис обрабатывает все `Pending`-брони параллельно через `Task.WhenAll`, а `lock` нельзя использовать вокруг `await` — компилятор не разрешит. `SemaphoreSlim` — асинхронный аналог мьютекса: `WaitAsync()`/`Release()` вместо `lock`, безопасен внутри `async`-кода. Задержка, имитирующая внешний вызов (`Task.Delay`), выполняется *до* захвата семафора — так все задержки идут параллельно; лимит семафора — `Environment.ProcessorCount`, то есть под его защитой одновременно может находиться несколько потоков, а не один, реальный параллелизм сохраняется и на этапе чтения/записи хранилища, а не только на этапе ожидания.
+**`SemaphoreSlim(Environment.ProcessorCount, ...)` в `BookingBackgroundService.ProcessBookingAsync`.** Здесь семафор — не про корректность (у каждой обрабатываемой брони свой собственный `AppDbContext`, полученный через `IServiceScopeFactory.CreateScope()` — сущности разных задач никак не пересекаются), а чисто про троттлинг: ограничивает, сколько броней обрабатывается параллельно, вместо того чтобы отправить в БД сразу все запросы одним махом.
 
-**`ConcurrentDictionary<Guid, T>` в `InMemoryEventStore`/`InMemoryBookingStore`.** Раньше оба хранилища использовали обычный `List<T>`, который не потокобезопасен: параллельные `Add`/`Remove`/чтение через `FirstOrDefault` при гонке могли повредить внутреннее состояние списка или бросить исключение. Это было неочевидно, пока семафор в фоновом сервисе стоял на `SemaphoreSlim(1, 1)` (обработка по факту была последовательной), но стало критичным при поднятии лимита семафора — несколько потоков теперь реально одновременно обращаются к `eventStore.Get(...)`/`bookingStore.UpdateBooking(...)`. `ConcurrentDictionary` даёт потокобезопасные `Add`/`Get`/`Update`/`Remove` "из коробки", без ручных `lock` внутри каждого метода стора.
+**Один `AppDbContext` — одна единица работы.** `BookingService.CreateBookingAsync` вызывает `SaveChangesAsync()` один раз, хотя меняет два объекта (новая `Booking` и уменьшенный `AvailableSeats` у `Event`) — оба отслеживаются одним и тем же контекстом в рамках запроса, так что EF Core сохраняет оба изменения одной транзакцией.
+
+**Компенсация при сбое обработки.** Если `BookingBackgroundService.ProcessBookingAsync` падает с ошибкой после захвата места (например, БД временно недоступна на середине операции), `CompensateAsync` открывает **новый** scope/`AppDbContext` (не переиспользует потенциально повреждённый после сбоя) и явно отклоняет бронь и возвращает место — иначе место осталось бы зарезервированным навсегда.
 
 ## Формат ошибок
 
@@ -185,10 +215,14 @@ GET /bookings/{bookingId}
 
 ## Тесты
 
-Юнит-тесты (xUnit) находятся в `tests/ASP.NET Core Web API.Tests`:
+Юнит-тесты (xUnit) находятся в `tests/ASP.NET Core Web API.Tests` и используют **InMemory-провайдер EF Core** (`Microsoft.EntityFrameworkCore.InMemory`), а не реальную PostgreSQL — `AppDbContext` регистрируется через `ServiceCollection`/`AddDbContext` с `UseInMemoryDatabase(dbName)`, сервисы резолвятся из DI как `IEventService`/`IBookingService`, ровно как в реальном приложении.
 
-- `EventServiceTest.cs` — CRUD-сценарии `EventService`: создание (включая валидацию `TotalSeats`), получение по id, фильтрация, пагинация, обновление, удаление.
-- `BookingServiceTest.cs` — сценарии `BookingService`: успешное и неуспешное создание брони, уменьшение `AvailableSeats`, исчерпание мест (`NoAvailableSeatsException`), восстановление места после `Reject()`/`ReleaseSeats()`, переходы статуса брони (`Confirm`/`Reject`), а также тесты на конкурентность — защита от овербукинга и уникальность Id брони при параллельных запросах (через `Task.Run` + `Task.WhenAll`, чтобы гонка была настоящей, а не последовательной).
+Каждый тестовый класс получает свою собственную, уникальную InMemory-базу (новый `Guid` на конструктор класса — xUnit создаёт новый экземпляр класса на каждый `[Fact]`, так что тесты гарантированно не влияют друг на друга). Важный нюанс: имя базы обязательно выносится в переменную **до** лямбды `AddDbContext(...)` — если вызвать `Guid.NewGuid()` прямо внутри неё, каждый `CreateScope()` получит свою отдельную базу, и данные между scope-ами перестанут быть общими.
+
+- `EventServiceTest.cs` — CRUD-сценарии `EventService`: создание (включая валидацию `TotalSeats`/дат), получение по id, фильтрация, пагинация, обновление, удаление (включая `EventHasBookingsException`, когда у события есть активные брони).
+- `BookingServiceTest.cs` — сценарии `BookingService`: успешное и неуспешное создание брони, уменьшение `AvailableSeats`, исчерпание мест (`NoAvailableSeatsException`), восстановление места после `Reject()`/`ReleaseSeats()`, переходы статуса брони (`Confirm`/`Reject`), а также тесты на конкурентность — защита от овербукинга и уникальность Id брони при параллельных запросах. Для параллельных тестов каждая задача открывает свой `_serviceProvider.CreateScope()` (свой `AppDbContext`), а не переиспользует общий сервис — иначе тест проверял бы не реальную гонку, а последовательный доступ к одному объекту.
+
+`EventService`/`BookingService` — классы `internal` (реализации скрыты, наружу торчат только `IEventService`/`IBookingService`); тестовая сборка получает доступ к ним через `InternalsVisibleTo` в `ASP.NET Core Web API.csproj`.
 
 Запуск:
 

@@ -10,7 +10,7 @@ namespace ASP.NET_Core_Web_API.Controllers;
 public class EventController(IEventService eventService) : ControllerBase
 {
     [HttpGet]
-    public async Task <ActionResult<PaginatedResult<EventResponseDto>>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
+    public async Task<ActionResult<PaginatedResult<EventResponseDto>>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
         var result = await eventService.GetEvents(title, from, to, page, pageSize);
         return new PaginatedResult<EventResponseDto>
@@ -19,7 +19,7 @@ public class EventController(IEventService eventService) : ControllerBase
             Items = result.Items.Select(EventResponseDto.FromEntity).ToList(),
             Page = result.Page,
             PageSize = result.PageSize
-        } ;
+        };
     }
 
     [HttpGet("{eventId:Guid}")]
@@ -42,7 +42,7 @@ public class EventController(IEventService eventService) : ControllerBase
     {
 
         var result = await eventService.UpdateEvent(eventId, dto.Title, dto.Description, dto.StartAt, dto.EndAt);
-        
+
         return Ok(EventResponseDto.FromEntity(result));
     }
 
@@ -52,6 +52,6 @@ public class EventController(IEventService eventService) : ControllerBase
         await eventService.DeleteEvent(eventId);
         return NoContent();
     }
-    
+
 
 }

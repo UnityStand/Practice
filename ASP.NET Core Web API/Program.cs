@@ -15,17 +15,17 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddHostedService<BookingBackgroundService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();
-builder.Services.AddDbContext<AppDbContext>(options =>                                                      
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));          
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
-using (var scope = app.Services.CreateScope())                                                                                     
-{                                                                                                                                  
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();                                                             
-    db.Database.EnsureCreated();                                                                                                   
-}  
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -35,6 +35,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapControllers();
-app.UseExceptionHandler();      
+
 app.Run();
 

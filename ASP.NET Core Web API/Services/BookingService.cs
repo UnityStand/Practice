@@ -8,7 +8,8 @@ internal class BookingService(AppDbContext context) : IBookingService
 {
     private static readonly SemaphoreSlim _bookingLock = new(1, 1);
     public async Task<Booking> CreateBookingAsync(Guid eventId)
-    {   await _bookingLock.WaitAsync();
+    {
+        await _bookingLock.WaitAsync();
 
         try
         {
@@ -23,10 +24,10 @@ internal class BookingService(AppDbContext context) : IBookingService
         }
         finally
         {
-            _bookingLock.Release();      
+            _bookingLock.Release();
         }
 
-        
+
     }
 
     public async Task<Booking> GetBookingByIdAsync(Guid bookingId)

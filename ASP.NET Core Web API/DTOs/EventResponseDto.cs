@@ -6,7 +6,7 @@ namespace ASP.NET_Core_Web_API.DTOs;
 public class EventResponseDto
 {
     public Guid EventId { get; set; }
-    public string Title { get; set; }= string.Empty;
+    public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
@@ -17,7 +17,7 @@ public class EventResponseDto
     public static EventResponseDto FromEntity(Event @event) => new()
     {
         EventId = @event.Id,
-        Title= @event.Title,
+        Title = @event.Title,
         Description = @event.Description,
         StartAt = @event.StartAt,
         EndAt = @event.EndAt,

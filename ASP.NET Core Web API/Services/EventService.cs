@@ -17,9 +17,9 @@ internal class EventService(AppDbContext context) : IEventService
 
     public async Task<PaginatedResult<Event>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
-        var query =  context.Events.AsQueryable();  
+        var query = context.Events.AsQueryable();
         if (!string.IsNullOrWhiteSpace(title))
-            query = query.Where(e => e.Title.ToLower().Contains(title.ToLower()));       
+            query = query.Where(e => e.Title.ToLower().Contains(title.ToLower()));
         if (from != null)
             query = query.Where(e => e.StartAt >= from);
         if (to != null)
@@ -45,19 +45,20 @@ internal class EventService(AppDbContext context) : IEventService
     {
         var newEvent = Event.Create(title, description, startAt, endAt, totalSeats);
         context.Events.Add(newEvent);
-        await context.SaveChangesAsync();   
+        await context.SaveChangesAsync();
 
         return newEvent;
     }
 
-    public async Task<Event> UpdateEvent(Guid id, string title, string? description, DateTime startAt,DateTime endAt)
+    public async Task<Event> UpdateEvent(Guid id, string title, string? description, DateTime startAt, DateTime endAt)
     {
-        
+  startAt = DateTime.SpecifyKind(startAt, DateTimeKind.Utc);                                                                         
+  endAt = DateTime.SpecifyKind(endAt, DateTimeKind.Utc);    
         var existingEvent = await FindEventOrThrow(id);
         existingEvent.UpdateInfo(title, description, startAt, endAt);
-     
-        await context.SaveChangesAsync(); 
-        
+
+        await context.SaveChangesAsync();
+
         return existingEvent;
     }
 
@@ -67,8 +68,8 @@ internal class EventService(AppDbContext context) : IEventService
         if (await context.Bookings.AnyAsync(b =>
                 b.EventId == id)) throw new EventHasBookingsException("Cannot delete event with active bookings");
         context.Events.Remove(existingEvent);
-        await context.SaveChangesAsync(); 
-        
+        await context.SaveChangesAsync();
+
         return true;
     }
 }

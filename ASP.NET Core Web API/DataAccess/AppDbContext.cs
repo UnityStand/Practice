@@ -14,4 +14,4 @@ internal sealed class AppDbContext : DbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
-} 
+}
