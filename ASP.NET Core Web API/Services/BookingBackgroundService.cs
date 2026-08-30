@@ -1,9 +1,11 @@
 using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-public class BookingBackgroundService(IBookingStore bookingStore, IEventStore eventStore, ILogger<BookingBackgroundService> logger) : BackgroundService
+public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger<BookingBackgroundService> logger) : BackgroundService
 {
     private const int PollingIntervalMs = 1000;
     private const int ProcessingDelayMs = 1000;
@@ -14,19 +16,50 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var pendingBookings = bookingStore.GetBookingsPending().ToList();
-            var tasks = pendingBookings.Select(booking => ProcessBookingAsync(booking, stoppingToken));
+            List<Guid>? pendingBookingsIds = null;
+            using (var scope = scopeFactory.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                pendingBookingsIds = await context.Bookings
+                    .Where(b => b.Status == BookingStatus.Pending)
+                    .Select(b => b.Id)
+                    .ToListAsync(stoppingToken);
+            }
+            var tasks = pendingBookingsIds.Select(booking => ProcessBookingAsync(booking, stoppingToken));
             await Task.WhenAll(tasks);
             await Task.Delay(PollingIntervalMs, stoppingToken);
+
+
 
         }
     }
 
-    private async Task ProcessBookingAsync(Booking booking, CancellationToken stoppingToken)
+    private async Task CompensateAsync(Guid bookingId, CancellationToken stoppingToken)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var booking = await context.Bookings.FindAsync(bookingId);
+            if (booking is null || booking.Status != BookingStatus.Pending) return;
+
+            booking.Reject();
+            var @event = await context.Events.FindAsync(booking.EventId);
+            @event?.ReleaseSeats();
+            await context.SaveChangesAsync(stoppingToken);
+        }
+        catch (Exception compensationError)
+        {
+            logger.LogError(compensationError, "Failed to compensate booking {BookingId} after processing error", bookingId);
+        }
+    }
+
+    private async Task ProcessBookingAsync(Guid bookingId, CancellationToken stoppingToken)
     {
         await Task.Delay(ProcessingDelayMs, stoppingToken);
 
-        Event? @event = null;
+
         var acquired = false;
 
         try
@@ -34,7 +67,13 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
             await _processingSemaphore.WaitAsync(stoppingToken);
             acquired = true;
 
-            @event = eventStore.Get(booking.EventId);
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var booking = await context.Bookings.FindAsync(bookingId);
+            if (booking is null || booking.Status != BookingStatus.Pending) return;
+
+            var @event = await context.Events.FindAsync(booking.EventId);
             if (@event is not null)
             {
                 booking.Confirm();
@@ -43,9 +82,9 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
             else
             {
                 booking.Reject();
-                logger.LogWarning("Booking {BookingId} not found , rejecting", booking.Id);
+                logger.LogWarning("Event {@event} is null , rejecting", booking.Id);
             }
-            bookingStore.UpdateBooking(booking);
+            await context.SaveChangesAsync(stoppingToken);
 
         }
         catch (OperationCanceledException)
@@ -54,14 +93,8 @@ public class BookingBackgroundService(IBookingStore bookingStore, IEventStore ev
         }
         catch (Exception e)
         {
-            if (acquired && booking.Status != BookingStatus.Confirmed)
-            {
-                booking.Reject();
-                @event?.ReleaseSeats();
-                bookingStore.UpdateBooking(booking);
-            }
-            logger.LogError(e, "Unexpected error while processing booking {BookingId}",
-                booking.Id);
+            logger.LogError(e, "Unexpected error while processing booking {BookingId}", bookingId);
+            await CompensateAsync(bookingId, stoppingToken);
         }
         finally
         {

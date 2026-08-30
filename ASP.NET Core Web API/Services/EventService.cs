@@ -2,31 +2,30 @@
 using ASP.NET_Core_Web_API.DTOs;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ASP.NET_Core_Web_API.Services;
 
-public class EventService(IEventStore eventStore) : IEventService
+internal class EventService(AppDbContext context) : IEventService
 {
 
-    private Event FindEventOrThrow(Guid id)
+    private async Task<Event> FindEventOrThrow(Guid id)
     {
-        var result = eventStore.Get(id);
-        if (result == null) throw new NotFoundException($"Event with id {id} not found");
-
-        return result;
+        var result = await context.Events.FindAsync(id);
+        return result ?? throw new NotFoundException($"Event with id {id} not found");
     }
 
-    public PaginatedResult<Event> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
+    public async Task<PaginatedResult<Event>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
-        var query = eventStore.GetAll();
+        var query = context.Events.AsQueryable();
         if (!string.IsNullOrWhiteSpace(title))
-            query = query.Where(e => e.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(e => e.Title.ToLower().Contains(title.ToLower()));
         if (from != null)
             query = query.Where(e => e.StartAt >= from);
         if (to != null)
             query = query.Where(e => e.EndAt <= to);
-        var total = query.Count();
-        var items = query.OrderBy(e => e.StartAt).Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var total = await query.CountAsync();
+        var items = await query.OrderBy(e => e.StartAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return new PaginatedResult<Event>
         {
             TotalCount = total,
@@ -36,35 +35,41 @@ public class EventService(IEventStore eventStore) : IEventService
         };
     }
 
-    public Event GetEventById(Guid id)
+    public async Task<Event> GetEventById(Guid id)
     {
-        return FindEventOrThrow(id);
+        return await FindEventOrThrow(id);
     }
 
 
-    public Event CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
+    public async Task<Event> CreateEvent(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
         var newEvent = Event.Create(title, description, startAt, endAt, totalSeats);
+        context.Events.Add(newEvent);
+        await context.SaveChangesAsync();
 
-        return eventStore.Add(newEvent);
+        return newEvent;
     }
 
-    public Event UpdateEvent(Event updatedEvent)
+    public async Task<Event> UpdateEvent(Guid id, string title, string? description, DateTime startAt, DateTime endAt)
     {
-        var existingEvent = FindEventOrThrow(updatedEvent.Id);
+  startAt = DateTime.SpecifyKind(startAt, DateTimeKind.Utc);                                                                         
+  endAt = DateTime.SpecifyKind(endAt, DateTimeKind.Utc);    
+        var existingEvent = await FindEventOrThrow(id);
+        existingEvent.UpdateInfo(title, description, startAt, endAt);
 
-        existingEvent.Title = updatedEvent.Title;
-        existingEvent.Description = updatedEvent.Description;
-        existingEvent.StartAt = updatedEvent.StartAt;
-        existingEvent.EndAt = updatedEvent.EndAt;
+        await context.SaveChangesAsync();
 
         return existingEvent;
     }
 
-    public bool DeleteEvent(Guid id)
+    public async Task<bool> DeleteEvent(Guid id)
     {
-        var existingEvent = FindEventOrThrow(id);
-        eventStore.Remove(existingEvent);
+        var existingEvent = await FindEventOrThrow(id);
+        if (await context.Bookings.AnyAsync(b =>
+                b.EventId == id)) throw new EventHasBookingsException("Cannot delete event with any bookings");
+        context.Events.Remove(existingEvent);
+        await context.SaveChangesAsync();
+
         return true;
     }
 }

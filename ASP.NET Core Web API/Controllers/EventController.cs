@@ -10,49 +10,48 @@ namespace ASP.NET_Core_Web_API.Controllers;
 public class EventController(IEventService eventService) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<PaginatedResult<Event>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
+    public async Task<ActionResult<PaginatedResult<EventResponseDto>>> GetEvents(string? title, DateTime? from, DateTime? to, int page = 1, int pageSize = 10)
     {
-        return eventService.GetEvents(title, from, to, page, pageSize);
+        var result = await eventService.GetEvents(title, from, to, page, pageSize);
+        return new PaginatedResult<EventResponseDto>
+        {
+            TotalCount = result.TotalCount,
+            Items = result.Items.Select(EventResponseDto.FromEntity).ToList(),
+            Page = result.Page,
+            PageSize = result.PageSize
+        };
     }
 
     [HttpGet("{eventId:Guid}")]
-    public ActionResult<Event> GetEvent(Guid eventId)
+    public async Task<ActionResult<EventResponseDto>> GetEvent(Guid eventId)
     {
-        var ev = eventService.GetEventById(eventId);
-        return Ok(ev);
+        var ev = await eventService.GetEventById(eventId);
+        return Ok(EventResponseDto.FromEntity(ev));
     }
 
     [HttpPost]
-    public IActionResult PostEvent(CreateEventDto createEventDto)
+    public async Task<IActionResult> PostEvent(CreateEventDto createEventDto)
     {
 
-        var newEvent = eventService.CreateEvent(createEventDto.Title, createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
-        return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, newEvent);
+        var newEvent = await eventService.CreateEvent(createEventDto.Title, createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
+        return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, EventResponseDto.FromEntity(newEvent));
     }
 
     [HttpPut("{eventId:Guid}")]
-    public IActionResult PutEvent(Guid eventId, EventInfoDto createEventDto)
+    public async Task<IActionResult> PutEvent(Guid eventId, EventRequestDto dto)
     {
-        var updatedEvent = MapDtoToEvent(createEventDto);
-        updatedEvent.Id = eventId;
-        var result = eventService.UpdateEvent(updatedEvent);
-        return Ok(result);
+
+        var result = await eventService.UpdateEvent(eventId, dto.Title, dto.Description, dto.StartAt, dto.EndAt);
+
+        return Ok(EventResponseDto.FromEntity(result));
     }
 
     [HttpDelete("{eventId:Guid}")]
-    public IActionResult DeleteEvent(Guid eventId)
+    public async Task<IActionResult> DeleteEvent(Guid eventId)
     {
-        eventService.DeleteEvent(eventId);
+        await eventService.DeleteEvent(eventId);
         return NoContent();
     }
 
-    private static Event MapDtoToEvent(EventInfoDto dto) => new()
-    {
-        Title = dto.Title,
-        Description = dto.Description,
-        StartAt = dto.StartAt,
-        EndAt = dto.EndAt,
-
-    };
 
 }
