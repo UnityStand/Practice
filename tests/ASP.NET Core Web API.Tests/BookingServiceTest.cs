@@ -18,6 +18,8 @@ public class BookingServiceTests : IDisposable
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IBookingService, BookingService>();
         _serviceProvider = services.BuildServiceProvider();
