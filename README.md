@@ -6,6 +6,7 @@
 
 - .NET SDK 10.0
 - PostgreSQL (локально или в контейнере)
+- Docker — нужен для интеграционных тестов (Testcontainers поднимает PostgreSQL в контейнере автоматически) и, при желании, для локального запуска PostgreSQL
 
 ## Настройка строки подключения
 
@@ -30,7 +31,27 @@ dotnet build "ASP.NET Core Web API"
 dotnet run --project "ASP.NET Core Web API"
 ```
 
-Схема базы данных (таблицы `events`, `bookings`) создаётся автоматически при первом запуске через `Database.EnsureCreated()` в `Program.cs` — отдельно накатывать миграции не нужно. `EnsureCreated` ничего не делает при повторных запусках, если схема уже существует, но **не совместим с EF Core миграциями** — если в будущем понадобятся миграции, БД нужно будет пересоздать или заменить `EnsureCreated()` на `Migrate()`.
+Схема базы данных (таблицы `Events`, `Bookings`, внешний ключ между ними) управляется миграциями EF Core, а не создаётся вручную. При старте `Program.cs` вызывает `db.Database.Migrate()` — он применяет все ещё не применённые миграции из папки `Migrations/` и сам создаёт базу, если её не существует. Повторные запуски ничего не ломают: уже применённые миграции просто пропускаются (EF Core отслеживает это в служебной таблице `__EFMigrationsHistory`).
+
+## Миграции EF Core
+
+Миграции лежат в `ASP.NET Core Web API/Migrations/`. Для работы с ними нужен установленный `dotnet-ef`:
+
+```bash
+dotnet tool install --global dotnet-ef
+```
+
+Применять миграции руками не нужно — это делает `Program.cs` при каждом старте приложения (`Database.Migrate()`). Команды ниже нужны только для **разработки** — когда меняется модель (`Event`/`Booking`/конфигурации `IEntityTypeConfiguration`) и нужно сгенерировать новую миграцию:
+
+```bash
+# создать новую миграцию после изменения модели
+dotnet ef migrations add <ИмяМиграции> --project "ASP.NET Core Web API" --startup-project "ASP.NET Core Web API"
+
+# применить миграции к базе вручную, без запуска приложения (например, для отладки)
+dotnet ef database update --project "ASP.NET Core Web API" --startup-project "ASP.NET Core Web API"
+```
+
+`--project`/`--startup-project` указаны явно, потому что решение (`Practice.sln`) содержит несколько проектов, и `dotnet ef` иначе не поймёт, откуда брать `AppDbContext` и строку подключения.
 
 ## Swagger
 
@@ -151,9 +172,13 @@ GET /events?title=стендап&page=2&pageSize=5
 
 - `Id` у обеих сущностей — `ValueGeneratedNever()`: идентификатор генерируется в коде (в `Event.Create(...)`/`Booking.Create(...)`), а не базой данных.
 - `Booking.Status` (enum) хранится в БД как строка (`HasConversion<string>()`), а не как число — это защищает существующие данные от порчи, если порядок значений `BookingStatus` когда-нибудь изменится.
-- Связь `Event` → `Booking` (один-ко-многим) настроена с `OnDelete(DeleteBehavior.Restrict)`: удалить событие с активными бронями нельзя — `EventService.DeleteEvent` сначала проверяет `context.Bookings.AnyAsync(...)` и бросает `EventHasBookingsException` (`409 Conflict`), не давая базе самой отказать менее понятной ошибкой нарушения внешнего ключа.
+- Связь `Event` → `Booking` (один-ко-многим) настроена с `OnDelete(DeleteBehavior.Restrict)`: удалить событие с активными бронями нельзя — `EventService.DeleteEvent` сначала проверяет наличие броней через репозиторий и бросает `EventHasBookingsException` (`409 Conflict`), не давая базе самой отказать менее понятной ошибкой нарушения внешнего ключа.
 
 `Event`/`Booking` — приватные конструкторы без параметров (нужны EF Core для создания объектов через рефлексию при чтении из БД) плюс публичные статические фабрики `Create(...)` с валидацией инвариантов. Внешний код не может создать эти сущности через `new` напрямую.
+
+### Репозитории
+
+Прямая работа с `AppDbContext` вынесена из сервисов в отдельный слой репозиториев (`DataAccess/EventRepository.cs`, `DataAccess/BookingRepository.cs`, интерфейсы `IEventRepository`/`IBookingRepository`). `EventService`/`BookingService` больше не знают про `DbSet`/LINQ-запросы к базе — они работают только с интерфейсами репозиториев и доменными объектами, а вся персистентность (запросы, `SaveChangesAsync`) инкапсулирована в реализациях. Оба репозитория зарегистрированы в DI как `Scoped`; `BookingBackgroundService` (как `Hosted Service`-singleton) получает их не через конструктор напрямую, а через `IServiceScopeFactory.CreateScope()` на каждую единицу работы — иначе возник бы захват Scoped-зависимости синглтоном (captive dependency).
 
 ## Синхронизация и защита от гонок
 
@@ -215,7 +240,11 @@ GET /bookings/{bookingId}
 
 ## Тесты
 
-Юнит-тесты (xUnit) находятся в `tests/ASP.NET Core Web API.Tests` и используют **InMemory-провайдер EF Core** (`Microsoft.EntityFrameworkCore.InMemory`), а не реальную PostgreSQL — `AppDbContext` регистрируется через `ServiceCollection`/`AddDbContext` с `UseInMemoryDatabase(dbName)`, сервисы резолвятся из DI как `IEventService`/`IBookingService`, ровно как в реальном приложении.
+Юнит- и интеграционные тесты — два разных проекта, `tests/ASP.NET Core Web API.Tests` и `tests/Integration.Tests`, — запускаются одной командой `dotnet test` из корня решения (или `dotnet test Practice.sln`).
+
+### Юнит-тесты
+
+Находятся в `tests/ASP.NET Core Web API.Tests` и используют **InMemory-провайдер EF Core** (`Microsoft.EntityFrameworkCore.InMemory`), а не реальную PostgreSQL — `AppDbContext` регистрируется через `ServiceCollection`/`AddDbContext` с `UseInMemoryDatabase(dbName)`, сервисы резолвятся из DI как `IEventService`/`IBookingService`, ровно как в реальном приложении.
 
 Каждый тестовый класс получает свою собственную, уникальную InMemory-базу (новый `Guid` на конструктор класса — xUnit создаёт новый экземпляр класса на каждый `[Fact]`, так что тесты гарантированно не влияют друг на друга). Важный нюанс: имя базы обязательно выносится в переменную **до** лямбды `AddDbContext(...)` — если вызвать `Guid.NewGuid()` прямо внутри неё, каждый `CreateScope()` получит свою отдельную базу, и данные между scope-ами перестанут быть общими.
 
@@ -224,8 +253,21 @@ GET /bookings/{bookingId}
 
 `EventService`/`BookingService` — классы `internal` (реализации скрыты, наружу торчат только `IEventService`/`IBookingService`); тестовая сборка получает доступ к ним через `InternalsVisibleTo` в `ASP.NET Core Web API.csproj`.
 
-Запуск:
+### Интеграционные тесты
+
+Находятся в `tests/Integration.Tests` и проверяют `EventRepository`/`BookingRepository` на **реальном PostgreSQL**, поднятом через [Testcontainers](https://dotnet.testcontainers.org/) (`Testcontainers.PostgreSql`) — **для их запуска обязательно должен быть запущен Docker**, контейнер поднимается и удаляется автоматически, вручную ничего готовить не нужно.
+
+- `Fixtures/PostgresContainerFixture.cs` — стартует один контейнер PostgreSQL на весь прогон тестов (`IAsyncLifetime`), `Fixtures/DatabaseCollection.cs` (`[CollectionDefinition]` + `ICollectionFixture`) раздаёт этот единственный экземпляр всем тестовым классам, помеченным `[Collection("Database")]` — так контейнер не пересоздаётся на каждый класс.
+- `RepositoryTestBase.cs` — общий базовый класс: перед **каждым** тестом (`InitializeAsync`, xUnit создаёт новый экземпляр класса на каждый `[Fact]`) пересоздаёт схему через `EnsureDeletedAsync()` + `MigrateAsync()`. Это одновременно даёт тестам чистое состояние базы и попутно проверяет, что миграции реально способны поднять схему с нуля.
+- `EventRepositoryTests.cs` — все методы `IEventRepository`, включая варианты фильтров `GetPagedAsync` (по названию, по датам `from`/`to`) и пагинацию (проверка общего количества и отсутствия пересечения элементов между страницами).
+- `BookingRepositoryTests.cs` — все методы `IBookingRepository`, включая `ExistsForEventAsync` (для проверки перед удалением события) и `GetPendingIdsAsync` (выборка только `Pending`-броней для фонового сервиса).
+
+`EventRepository`/`BookingRepository`/`AppDbContext` — тоже `internal`; доступ для `Integration.Tests` открыт отдельной записью `InternalsVisibleTo` в `ASP.NET Core Web API.csproj`.
+
+### Запуск всех тестов
 
 ```bash
 dotnet test
 ```
+
+Юнит-тесты выполняются за доли секунды (InMemory), интеграционные — на пару секунд дольше первого запуска (Docker тянет образ `postgres:16-alpine`, если его ещё нет локально), при повторных запусках образ уже закэширован.
