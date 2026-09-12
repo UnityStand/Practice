@@ -1,7 +1,6 @@
-﻿using ASP.NET_Core_Web_API.Models;
+﻿using EventApi.Domain.Entities;
 
-
-namespace ASP.NET_Core_Web_API.DataAccess;
+namespace EventApi.Application.Abstractions;
 
 public interface IEventRepository
 {

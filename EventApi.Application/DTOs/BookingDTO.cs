@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using ASP.NET_Core_Web_API.Models;
+using EventApi.Domain.Entities;
 
-namespace ASP.NET_Core_Web_API.DTOs;
+namespace EventApi.Application.DTOs;
 
 public class BookingResponseDto
 {

@@ -1,4 +1,4 @@
-namespace ASP.NET_Core_Web_API.Models;
+namespace EventApi.Domain.Entities;
 
 public enum BookingStatus
 {

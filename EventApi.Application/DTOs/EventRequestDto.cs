@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ASP.NET_Core_Web_API.DTOs;
+namespace EventApi.Application.DTOs;
 
 public class EventRequestDto
 {

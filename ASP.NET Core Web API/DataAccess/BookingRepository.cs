@@ -1,4 +1,5 @@
 ﻿using ASP.NET_Core_Web_API.Models;
+using EventApi.Application.Abstractions;
 using Microsoft.EntityFrameworkCore;
 namespace ASP.NET_Core_Web_API.DataAccess;
 

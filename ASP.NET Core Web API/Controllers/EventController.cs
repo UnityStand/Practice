@@ -1,6 +1,6 @@
-﻿using ASP.NET_Core_Web_API.DTOs;
-using ASP.NET_Core_Web_API.Models;
-using ASP.NET_Core_Web_API.Services;
+﻿using ASP.NET_Core_Web_API.Models;
+using EventApi.Application.DTOs;
+using EventApi.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ASP.NET_Core_Web_API.Controllers;

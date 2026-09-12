@@ -1,6 +1,6 @@
-using ASP.NET_Core_Web_API.Models;
+using EventApi.Domain.Entities;
 
-namespace ASP.NET_Core_Web_API.Services;
+namespace EventApi.Application.Services;
 
 public interface IBookingService
 {

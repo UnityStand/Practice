@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ASP.NET_Core_Web_API.Models;
+namespace EventApi.Domain.Entities;
 
 public class Event
 {

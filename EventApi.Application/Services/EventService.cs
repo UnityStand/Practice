@@ -1,9 +1,9 @@
-﻿using ASP.NET_Core_Web_API.DataAccess;
-using ASP.NET_Core_Web_API.DTOs;
-using ASP.NET_Core_Web_API.Exceptions;
-using ASP.NET_Core_Web_API.Models;
+﻿using EventApi.Application.Abstractions;
+using EventApi.Application.DTOs;
+using EventApi.Domain.Entities;
+using EventApi.Domain.Exceptions;
 
-namespace ASP.NET_Core_Web_API.Services;
+namespace EventApi.Application.Services;
 
 internal class EventService(IEventRepository
     eventRepository, IBookingRepository bookingRepository) : IEventService

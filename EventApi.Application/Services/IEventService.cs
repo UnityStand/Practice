@@ -1,7 +1,7 @@
-﻿using ASP.NET_Core_Web_API.DTOs;
-using ASP.NET_Core_Web_API.Models;
+﻿using EventApi.Application.DTOs;
+using EventApi.Domain.Entities;
 
-namespace ASP.NET_Core_Web_API.Services;
+namespace EventApi.Application.Services;
 
 public interface IEventService
 {

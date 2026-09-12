@@ -1,6 +1,4 @@
-﻿using ASP.NET_Core_Web_API.DTOs;
-
-namespace ASP.NET_Core_Web_API.Models;
+﻿namespace EventApi.Domain.Entities;
 
 public class Booking
 {

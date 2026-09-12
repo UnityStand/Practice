@@ -1,6 +1,7 @@
 using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Exceptions;
-using ASP.NET_Core_Web_API.Services;
+using EventApi.Application.Abstractions;
+using EventApi.Application.Services;
 using Microsoft.EntityFrameworkCore;
 
 

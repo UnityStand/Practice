@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Exceptions;
 using ASP.NET_Core_Web_API.Models;
-using ASP.NET_Core_Web_API.Services;
+using EventApi.Application.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

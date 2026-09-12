@@ -1,7 +1,10 @@
-using ASP.NET_Core_Web_API.DataAccess;
-using ASP.NET_Core_Web_API.Models;
+using EventApi.Application.Abstractions;
+using EventApi.Domain.Entities;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-namespace ASP.NET_Core_Web_API.Services;
+namespace EventApi.Application.Services;
 
 public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger<BookingBackgroundService> logger) : BackgroundService
 {

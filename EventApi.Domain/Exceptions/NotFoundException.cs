@@ -1,3 +1,3 @@
-﻿namespace ASP.NET_Core_Web_API.Exceptions;
+﻿namespace EventApi.Domain.Exceptions;
 
 public class NotFoundException(string message) : Exception(message);
