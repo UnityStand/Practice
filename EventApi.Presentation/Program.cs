@@ -1,9 +1,8 @@
-using ASP.NET_Core_Web_API.Exceptions;
-using EventApi.Application.Abstractions;
 using EventApi.Application.DependencyInjection;
 using EventApi.Application.Services;
 using EventApi.Infrastructure.DependencyInjection;
 using EventApi.Infrastructure.Persistence;
+using EventApi.Presentation.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 

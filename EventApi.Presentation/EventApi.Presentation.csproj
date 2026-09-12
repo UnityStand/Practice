@@ -4,7 +4,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>ASP.NET_Core_Web_API</RootNamespace>
+        <RootNamespace>EventApi.Presentation</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

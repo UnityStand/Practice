@@ -3,7 +3,7 @@ using EventApi.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ASP.NET_Core_Web_API.Exceptions;
+namespace EventApi.Presentation.Exceptions;
 
 public class GlobalExceptionHandlingMiddleware : IExceptionHandler
 {

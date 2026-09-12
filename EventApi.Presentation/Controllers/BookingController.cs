@@ -2,7 +2,7 @@ using EventApi.Application.DTOs;
 using EventApi.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ASP.NET_Core_Web_API.Controllers;
+namespace EventApi.Presentation.Controllers;
 
 [ApiController]
 public class BookingController(IBookingService bookingService) : ControllerBase

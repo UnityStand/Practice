@@ -2,7 +2,7 @@
 using EventApi.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ASP.NET_Core_Web_API.Controllers;
+namespace EventApi.Presentation.Controllers;
 
 [ApiController]
 [Route("events")]

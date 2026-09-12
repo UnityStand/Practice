@@ -8,8 +8,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ASP.NET_Core_Web_API.Migrations
-{
+namespace EventApi.Infrastructure.Migrations;
+
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
     {
@@ -96,4 +96,4 @@ namespace ASP.NET_Core_Web_API.Migrations
 #pragma warning restore 612, 618
         }
     }
-}
+
