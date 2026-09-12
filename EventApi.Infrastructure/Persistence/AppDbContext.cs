@@ -1,9 +1,9 @@
-﻿using ASP.NET_Core_Web_API.Models;
+﻿using EventApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace ASP.NET_Core_Web_API.DataAccess;
+namespace EventApi.Infrastructure.Persistence;
 
-internal sealed class AppDbContext : DbContext
+public sealed class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 

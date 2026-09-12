@@ -1,8 +1,8 @@
-﻿using ASP.NET_Core_Web_API.Models;
+﻿using EventApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ASP.NET_Core_Web_API.DataAccess.Configurations;
+namespace EventApi.Infrastructure.Persistence.Configurations;
 
 public class EventConfiguration : IEntityTypeConfiguration<Event>
 {

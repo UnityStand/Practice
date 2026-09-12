@@ -1,9 +1,10 @@
-﻿using ASP.NET_Core_Web_API.Models;
-using EventApi.Application.Abstractions;
+﻿using EventApi.Application.Abstractions;
+using EventApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-namespace ASP.NET_Core_Web_API.DataAccess;
 
-internal class BookingRepository(AppDbContext context) : IBookingRepository
+namespace EventApi.Infrastructure.Persistence;
+
+public class BookingRepository(AppDbContext context) : IBookingRepository
 {
     public async Task<Booking?> GetByIdAsync(Guid id)
     {
