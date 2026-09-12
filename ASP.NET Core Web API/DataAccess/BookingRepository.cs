@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 namespace ASP.NET_Core_Web_API.DataAccess;
 
-internal class BookingRepository(AppDbContext context): IBookingRepository
+internal class BookingRepository(AppDbContext context) : IBookingRepository
 {
     public async Task<Booking?> GetByIdAsync(Guid id)
     {
@@ -11,8 +11,8 @@ internal class BookingRepository(AppDbContext context): IBookingRepository
 
     public async Task<bool> ExistsForEventAsync(Guid eventId)
     {
-        return await context.Bookings.AnyAsync(b =>        
-            b.EventId == eventId);   
+        return await context.Bookings.AnyAsync(b =>
+            b.EventId == eventId);
     }
 
     public async Task AddAsync(Booking booking)
@@ -28,7 +28,7 @@ internal class BookingRepository(AppDbContext context): IBookingRepository
 
     public Task<List<Guid>> GetPendingIdsAsync()
     {
-        return  context.Bookings
+        return context.Bookings
             .Where(b => b.Status == BookingStatus.Pending)
             .Select(b => b.Id).ToListAsync();
     }

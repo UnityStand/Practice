@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ASP.NET_Core_Web_API.DataAccess;
 
-internal class EventRepository(AppDbContext context): IEventRepository
+internal class EventRepository(AppDbContext context) : IEventRepository
 {
     public async Task<Event?> GetEventByIdAsync(Guid id)
     {
-        return await context.Events.FindAsync(id).AsTask();     
+        return await context.Events.FindAsync(id).AsTask();
     }
 
     public async Task<(List<Event> Items, int TotalCount)> GetPagedAsync(string? title, DateTime? from, DateTime? to, int page, int pageSize)
@@ -26,18 +26,18 @@ internal class EventRepository(AppDbContext context): IEventRepository
 
     public async Task AddAsync(Event @event)
     {
-        context.Events.Add(@event);                                                                                                        
-        await context.SaveChangesAsync();  
+        context.Events.Add(@event);
+        await context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Event @event)
     {
-        await context.SaveChangesAsync();            
+        await context.SaveChangesAsync();
     }
 
     public async Task RemoveAsync(Event @event)
     {
-        context.Events.Remove(@event);                                                                                                     
-        await context.SaveChangesAsync();      
+        context.Events.Remove(@event);
+        await context.SaveChangesAsync();
     }
 }

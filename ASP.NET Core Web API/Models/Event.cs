@@ -18,13 +18,13 @@ public class Event
     public ICollection<Booking> Bookings { get; private set; } = new List<Booking>();
     public static Event Create(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
-        
+
         if (totalSeats <= 0)
             throw new ValidationException("totalSeats cannot be less or equal to zero");
         if (endAt <= startAt)
             throw new ValidationException("StartAt cannot be less or equal to endAt");
-        startAt = DateTime.SpecifyKind(startAt, DateTimeKind.Utc);                                                                         
-        endAt = DateTime.SpecifyKind(endAt, DateTimeKind.Utc);    
+        startAt = DateTime.SpecifyKind(startAt, DateTimeKind.Utc);
+        endAt = DateTime.SpecifyKind(endAt, DateTimeKind.Utc);
 
         return new Event
         {
@@ -42,9 +42,9 @@ public class Event
     {
         if (endAt <= startAt)
             throw new ValidationException("StartAt cannot be less or equal to endAt");
-        startAt = DateTime.SpecifyKind(startAt, DateTimeKind.Utc);                                                                         
-        endAt = DateTime.SpecifyKind(endAt, DateTimeKind.Utc);    
-        
+        startAt = DateTime.SpecifyKind(startAt, DateTimeKind.Utc);
+        endAt = DateTime.SpecifyKind(endAt, DateTimeKind.Utc);
+
         Title = title;
         Description = description;
         StartAt = startAt;

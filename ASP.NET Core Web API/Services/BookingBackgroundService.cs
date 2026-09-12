@@ -1,7 +1,5 @@
 using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ASP.NET_Core_Web_API.Services;
 
@@ -17,14 +15,11 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
         while (!stoppingToken.IsCancellationRequested)
         {
             List<Guid>? pendingBookingsIds = null;
-            using (var scope = scopeFactory.CreateScope())
-            {
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                pendingBookingsIds = await context.Bookings
-                    .Where(b => b.Status == BookingStatus.Pending)
-                    .Select(b => b.Id)
-                    .ToListAsync(stoppingToken);
-            }
+            using (var scope = scopeFactory.CreateScope())         
+            { 
+                var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();                   
+                pendingBookingsIds = await bookingRepository.GetPendingIdsAsync();                
+            }    
             var tasks = pendingBookingsIds.Select(booking => ProcessBookingAsync(booking, stoppingToken));
             await Task.WhenAll(tasks);
             await Task.Delay(PollingIntervalMs, stoppingToken);
@@ -38,16 +33,18 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
     {
         try
         {
-            using var scope = scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            using var scope = scopeFactory.CreateScope();          
+            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();                           
+            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();                       
 
-            var booking = await context.Bookings.FindAsync(bookingId);
+
+            var booking = await bookingRepository.GetByIdAsync(bookingId);
             if (booking is null || booking.Status != BookingStatus.Pending) return;
 
             booking.Reject();
-            var @event = await context.Events.FindAsync(booking.EventId);
+            var @event = await eventRepository.GetEventByIdAsync(booking.EventId);
             @event?.ReleaseSeats();
-            await context.SaveChangesAsync(stoppingToken);
+            await bookingRepository.UpdateAsync(booking);
         }
         catch (Exception compensationError)
         {
@@ -67,13 +64,15 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
             await _processingSemaphore.WaitAsync(stoppingToken);
             acquired = true;
 
-            using var scope = scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            using var scope = scopeFactory.CreateScope();          
+            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();                           
+            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();                       
+            
 
-            var booking = await context.Bookings.FindAsync(bookingId);
+            var booking = await bookingRepository.GetByIdAsync(bookingId);
             if (booking is null || booking.Status != BookingStatus.Pending) return;
 
-            var @event = await context.Events.FindAsync(booking.EventId);
+            var @event = await eventRepository.GetEventByIdAsync(booking.EventId);
             if (@event is not null)
             {
                 booking.Confirm();
@@ -84,7 +83,7 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
                 booking.Reject();
                 logger.LogWarning("Event {@event} is null , rejecting", booking.Id);
             }
-            await context.SaveChangesAsync(stoppingToken);
+            await bookingRepository.UpdateAsync(booking);
 
         }
         catch (OperationCanceledException)
