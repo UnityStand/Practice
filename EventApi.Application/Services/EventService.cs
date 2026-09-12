@@ -5,7 +5,7 @@ using EventApi.Domain.Exceptions;
 
 namespace EventApi.Application.Services;
 
-internal class EventService(IEventRepository
+public class EventService(IEventRepository
     eventRepository, IBookingRepository bookingRepository) : IEventService
 {
 

@@ -4,7 +4,7 @@ using EventApi.Domain.Exceptions;
 
 namespace EventApi.Application.Services;
 
-internal class BookingService(IEventRepository
+public class BookingService(IEventRepository
     eventRepository, IBookingRepository bookingRepository)  : IBookingService
 {
     private static readonly SemaphoreSlim _bookingLock = new(1, 1);

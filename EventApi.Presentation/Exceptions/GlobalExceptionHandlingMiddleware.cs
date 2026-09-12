@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using EventApi.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 

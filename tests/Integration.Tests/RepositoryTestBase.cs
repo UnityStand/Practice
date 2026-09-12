@@ -1,4 +1,4 @@
-using ASP.NET_Core_Web_API.DataAccess;
+using EventApi.Infrastructure.Persistence;
 using Integration.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 

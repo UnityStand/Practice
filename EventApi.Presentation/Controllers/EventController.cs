@@ -1,5 +1,4 @@
-﻿using ASP.NET_Core_Web_API.Models;
-using EventApi.Application.DTOs;
+﻿using EventApi.Application.DTOs;
 using EventApi.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 

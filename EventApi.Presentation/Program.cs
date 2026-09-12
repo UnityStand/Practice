@@ -1,7 +1,9 @@
-using ASP.NET_Core_Web_API.DataAccess;
 using ASP.NET_Core_Web_API.Exceptions;
 using EventApi.Application.Abstractions;
+using EventApi.Application.DependencyInjection;
 using EventApi.Application.Services;
+using EventApi.Infrastructure.DependencyInjection;
+using EventApi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -11,10 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
-builder.Services.AddScoped<IEventService, EventService>();
-builder.Services.AddScoped<IBookingService, BookingService>();
-builder.Services.AddScoped<IEventRepository, EventRepository>();                                    
-builder.Services.AddScoped<IBookingRepository, BookingRepository>();      
+builder.Services.AddApplicationServices();  
+builder.Services.AddInfrastructureServices(builder.Configuration);             
 builder.Services.AddHostedService<BookingBackgroundService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();

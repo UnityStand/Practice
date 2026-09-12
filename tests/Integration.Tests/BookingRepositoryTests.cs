@@ -1,4 +1,4 @@
-using ASP.NET_Core_Web_API.Models;
+using EventApi.Domain.Entities;
 using Integration.Tests.Fixtures;
 
 namespace Integration.Tests;
