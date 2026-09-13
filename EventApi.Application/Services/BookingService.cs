@@ -1,0 +1,38 @@
+﻿using EventApi.Application.Abstractions;
+using EventApi.Domain.Entities;
+using EventApi.Domain.Exceptions;
+
+namespace EventApi.Application.Services;
+
+public class BookingService(IEventRepository
+    eventRepository, IBookingRepository bookingRepository)  : IBookingService
+{
+    private static readonly SemaphoreSlim _bookingLock = new(1, 1);
+    public async Task<Booking> CreateBookingAsync(Guid eventId)
+    {
+        await _bookingLock.WaitAsync();
+
+        try
+        {
+            var @event = await eventRepository.GetEventByIdAsync(eventId);
+            if (@event == null) throw new NotFoundException($"Event with id {eventId} not found");
+            if (!@event.TryReserveSeats()) throw new NoAvailableSeatsException("No available seats for this event");
+            var booking = Booking.Create(eventId, BookingStatus.Pending, DateTime.UtcNow);
+            await bookingRepository.AddAsync(booking);
+            return booking;
+
+        }
+        finally
+        {
+            _bookingLock.Release();
+        }
+
+
+    }
+
+    public async Task<Booking> GetBookingByIdAsync(Guid bookingId)
+    {
+        var booking = await bookingRepository.GetByIdAsync(bookingId);
+        return booking ?? throw new NotFoundException($"Booking with id {bookingId} not found");
+    }
+}

@@ -1,8 +1,9 @@
 using System.Collections.Concurrent;
-using ASP.NET_Core_Web_API.DataAccess;
-using ASP.NET_Core_Web_API.Exceptions;
-using ASP.NET_Core_Web_API.Models;
-using ASP.NET_Core_Web_API.Services;
+using EventApi.Application.Abstractions;
+using EventApi.Application.Services;
+using EventApi.Domain.Entities;
+using EventApi.Domain.Exceptions;
+using EventApi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
