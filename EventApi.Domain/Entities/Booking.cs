@@ -7,7 +7,7 @@ public class Booking
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
     public User User { get; private set; } = null!;
-    public Guid UserId { get; private set; }  
+    public Guid UserId { get; private set; }
     public BookingStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
@@ -15,11 +15,11 @@ public class Booking
     private Booking() { }
     public Event Event { get; private set; } = null!;
 
-    public static Booking Create(Guid eventId,Guid userId, BookingStatus status, DateTime createdAt)
+    public static Booking Create(Guid eventId, Guid userId, BookingStatus status, DateTime createdAt)
     {
         return new Booking
         {
-            
+
             Id = Guid.NewGuid(),
             EventId = eventId,
             UserId = userId,

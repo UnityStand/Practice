@@ -2,5 +2,5 @@
 
 public class BookingSettings
 {
-    public int MaxActiveBookingsPerUser { get; set; }          
+    public int MaxActiveBookingsPerUser { get; set; }
 }

@@ -15,7 +15,7 @@ public class User
 
 
     public static User Create(string login, string passwordHash, UserRole role = UserRole.Customer)
-    {   
+    {
         if (string.IsNullOrEmpty(login))
             throw new ValidationException("login cannot be empty");
         if (string.IsNullOrEmpty(passwordHash))
@@ -30,4 +30,4 @@ public class User
 
         };
     }
-    }
+}

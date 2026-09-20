@@ -14,7 +14,7 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasOne(b => b.User)
             .WithMany()
             .HasForeignKey(b => b.UserId)
-            .OnDelete(DeleteBehavior.Restrict); 
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(e => e.Id).ValueGeneratedNever();
 
         builder.HasOne(b => b.Event)

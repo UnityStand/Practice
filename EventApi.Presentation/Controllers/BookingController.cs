@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace EventApi.Presentation.Controllers;
 
 [ApiController]
-[Authorize] 
+[Authorize]
 public class BookingController(IBookingService bookingService) : ControllerBase
 {
     [HttpGet("/bookings/{bookingId:Guid}")]
@@ -22,11 +22,11 @@ public class BookingController(IBookingService bookingService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<BookingResponseDto>> PostBooking(Guid eventId)
     {
-        var userId = GetCurrentUserId();       
+        var userId = GetCurrentUserId();
         var booking = await bookingService.CreateBookingAsync(eventId, userId);
         var result = BookingResponseDto.FromEntity(booking);
         return AcceptedAtAction(nameof(GetBooking), new { bookingId = booking.Id }, result);
     }
-    private Guid GetCurrentUserId() =>    
-        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);   
+    private Guid GetCurrentUserId() =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

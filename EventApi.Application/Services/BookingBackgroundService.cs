@@ -18,11 +18,11 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
         while (!stoppingToken.IsCancellationRequested)
         {
             List<Guid>? pendingBookingsIds = null;
-            using (var scope = scopeFactory.CreateScope())         
-            { 
-                var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();                   
-                pendingBookingsIds = await bookingRepository.GetPendingIdsAsync();                
-            }    
+            using (var scope = scopeFactory.CreateScope())
+            {
+                var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+                pendingBookingsIds = await bookingRepository.GetPendingIdsAsync();
+            }
             var tasks = pendingBookingsIds.Select(booking => ProcessBookingAsync(booking, stoppingToken));
             await Task.WhenAll(tasks);
             await Task.Delay(PollingIntervalMs, stoppingToken);
@@ -36,9 +36,9 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
     {
         try
         {
-            using var scope = scopeFactory.CreateScope();          
-            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();                           
-            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();                       
+            using var scope = scopeFactory.CreateScope();
+            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();
+            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
 
 
             var booking = await bookingRepository.GetByIdAsync(bookingId);
@@ -67,10 +67,10 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
             await _processingSemaphore.WaitAsync(stoppingToken);
             acquired = true;
 
-            using var scope = scopeFactory.CreateScope();          
-            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();                           
-            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();                       
-            
+            using var scope = scopeFactory.CreateScope();
+            var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();
+            var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+
 
             var booking = await bookingRepository.GetByIdAsync(bookingId);
             if (booking is null || booking.Status != BookingStatus.Pending) return;

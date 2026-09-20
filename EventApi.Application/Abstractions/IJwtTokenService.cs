@@ -4,5 +4,5 @@ namespace EventApi.Application.Abstractions;
 
 public interface IJwtTokenService
 {
-    string GenerateToken(Guid userId, string login, UserRole role);   
+    string GenerateToken(Guid userId, string login, UserRole role);
 }
