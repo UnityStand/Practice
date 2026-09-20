@@ -17,12 +17,20 @@ public class BookingRepositoryTests : RepositoryTestBase
         return testEvent;
     }
 
+    private async Task<Guid> CreatePersistedUserIdAsync()
+    {
+        var user = User.Create($"user-{Guid.NewGuid()}", "hash", UserRole.Customer);
+        await UserRepository.AddAsync(user);
+        return user.Id;
+    }
+
     [Fact]
     public async Task GetByIdAsync_WhenBookingExists_ReturnsBooking()
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var userId = await CreatePersistedUserIdAsync();
+        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
         await BookingRepository.AddAsync(booking);
 
         // Act
@@ -49,7 +57,8 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var userId = await CreatePersistedUserIdAsync();
+        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
         await BookingRepository.AddAsync(booking);
 
         // Act
@@ -77,7 +86,8 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var userId = await CreatePersistedUserIdAsync();
+        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
 
         // Act
         await BookingRepository.AddAsync(booking);
@@ -92,7 +102,8 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var userId = await CreatePersistedUserIdAsync();
+        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
         await BookingRepository.AddAsync(booking);
 
         // Act
@@ -110,9 +121,10 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var pending = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
-        var confirmed = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Confirmed, DateTime.UtcNow);
-        var rejected = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Rejected, DateTime.UtcNow);
+        var userId = await CreatePersistedUserIdAsync();
+        var pending = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
+        var confirmed = Booking.Create(testEvent.Id, userId, BookingStatus.Confirmed, DateTime.UtcNow);
+        var rejected = Booking.Create(testEvent.Id, userId, BookingStatus.Rejected, DateTime.UtcNow);
         await BookingRepository.AddAsync(pending);
         await BookingRepository.AddAsync(confirmed);
         await BookingRepository.AddAsync(rejected);

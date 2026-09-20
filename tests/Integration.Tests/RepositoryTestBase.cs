@@ -12,6 +12,7 @@ public abstract class RepositoryTestBase : IAsyncLifetime
     internal AppDbContext Context { get; private set; } = null!;
     internal EventRepository EventRepository { get; private set; } = null!;
     internal BookingRepository BookingRepository { get; private set; } = null!;
+    internal UserRepository UserRepository { get; private set; } = null!;
 
     protected RepositoryTestBase(PostgresContainerFixture fixture)
     {
@@ -30,6 +31,7 @@ public abstract class RepositoryTestBase : IAsyncLifetime
 
         EventRepository = new EventRepository(Context);
         BookingRepository = new BookingRepository(Context);
+        UserRepository = new UserRepository(Context);
     }
 
     public Task DisposeAsync() => Context.DisposeAsync().AsTask();
