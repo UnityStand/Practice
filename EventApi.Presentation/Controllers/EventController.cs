@@ -1,5 +1,6 @@
 ﻿using EventApi.Application.DTOs;
 using EventApi.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventApi.Presentation.Controllers;
@@ -29,6 +30,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]      
     public async Task<IActionResult> PostEvent(CreateEventDto createEventDto)
     {
 
@@ -37,6 +39,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpPut("{eventId:Guid}")]
+    [Authorize(Roles = "Admin")]      
     public async Task<IActionResult> PutEvent(Guid eventId, EventRequestDto dto)
     {
 
@@ -46,6 +49,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpDelete("{eventId:Guid}")]
+    [Authorize(Roles = "Admin")]      
     public async Task<IActionResult> DeleteEvent(Guid eventId)
     {
         await eventService.DeleteEvent(eventId);
