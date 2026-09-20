@@ -22,7 +22,7 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, BookingStatus.Pending, DateTime.UtcNow);
+        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
         await BookingRepository.AddAsync(booking);
 
         // Act
@@ -49,7 +49,7 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, BookingStatus.Pending, DateTime.UtcNow);
+        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
         await BookingRepository.AddAsync(booking);
 
         // Act
@@ -77,7 +77,7 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, BookingStatus.Pending, DateTime.UtcNow);
+        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
 
         // Act
         await BookingRepository.AddAsync(booking);
@@ -92,7 +92,7 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var booking = Booking.Create(testEvent.Id, BookingStatus.Pending, DateTime.UtcNow);
+        var booking = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
         await BookingRepository.AddAsync(booking);
 
         // Act
@@ -110,9 +110,9 @@ public class BookingRepositoryTests : RepositoryTestBase
     {
         // Arrange
         var testEvent = await CreatePersistedEventAsync();
-        var pending = Booking.Create(testEvent.Id, BookingStatus.Pending, DateTime.UtcNow);
-        var confirmed = Booking.Create(testEvent.Id, BookingStatus.Confirmed, DateTime.UtcNow);
-        var rejected = Booking.Create(testEvent.Id, BookingStatus.Rejected, DateTime.UtcNow);
+        var pending = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var confirmed = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Confirmed, DateTime.UtcNow);
+        var rejected = Booking.Create(testEvent.Id, Guid.NewGuid(), BookingStatus.Rejected, DateTime.UtcNow);
         await BookingRepository.AddAsync(pending);
         await BookingRepository.AddAsync(confirmed);
         await BookingRepository.AddAsync(rejected);

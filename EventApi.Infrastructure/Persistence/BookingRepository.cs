@@ -28,6 +28,13 @@ public class BookingRepository(AppDbContext context) : IBookingRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> CountActiveBookingsByUserIdAsync(Guid userId)
+    {
+        return await context.Bookings                                                                            
+            .Where(b => b.UserId == userId &&                                                                            
+                        (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed))                              
+            .CountAsync();           
+    }
     public Task<List<Guid>> GetPendingIdsAsync()
     {
         return context.Bookings

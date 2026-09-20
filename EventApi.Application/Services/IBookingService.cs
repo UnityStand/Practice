@@ -4,6 +4,6 @@ namespace EventApi.Application.Services;
 
 public interface IBookingService
 {
-    Task<Booking> CreateBookingAsync(Guid eventId);
+    Task<Booking> CreateBookingAsync(Guid eventId, Guid userId);
     Task<Booking> GetBookingByIdAsync(Guid bookingId);
 }

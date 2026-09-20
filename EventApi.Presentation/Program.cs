@@ -1,4 +1,5 @@
 using EventApi.Application.DependencyInjection;
+using EventApi.Application.Options;
 using EventApi.Application.Services;
 using EventApi.Infrastructure.DependencyInjection;
 using EventApi.Infrastructure.Persistence;
@@ -19,6 +20,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.Configure<BookingSettings>(builder.Configuration.GetSection("BookingSettings"));           
 
 var app = builder.Build();
 

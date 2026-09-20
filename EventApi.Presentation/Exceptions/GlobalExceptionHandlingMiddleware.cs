@@ -28,6 +28,9 @@ public class GlobalExceptionHandlingMiddleware : IExceptionHandler
             NotFoundException => StatusCodes.Status404NotFound,
             NoAvailableSeatsException => StatusCodes.Status409Conflict,
             EventHasBookingsException => StatusCodes.Status409Conflict,
+            ForbiddenException => StatusCodes.Status403Forbidden,
+            EventAlreadyStartedException => StatusCodes.Status400BadRequest,
+            BookingLimitExceededException => StatusCodes.Status409Conflict,
 
             _ => StatusCodes.Status500InternalServerError
         };

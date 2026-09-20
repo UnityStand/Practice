@@ -60,7 +60,7 @@ public class BookingServiceTests : IDisposable
     {
         var ev = await CreateTestEvent();
 
-        var booking = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var booking = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         Assert.Equal(ev.Id, booking.EventId);
         Assert.Equal(BookingStatus.Pending, booking.Status);
@@ -72,8 +72,8 @@ public class BookingServiceTests : IDisposable
     {
         var ev = await CreateTestEvent();
 
-        var first = await CreateBookingService().CreateBookingAsync(ev.Id);
-        var second = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var first = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
+        var second = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         Assert.NotEqual(first.Id, second.Id);
     }
@@ -82,7 +82,7 @@ public class BookingServiceTests : IDisposable
     public async Task GetBookingByIdAsync_ReturnsBooking_WhenExists()
     {
         var ev = await CreateTestEvent();
-        var created = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var created = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         var result = await CreateBookingService().GetBookingByIdAsync(created.Id);
 
@@ -95,7 +95,7 @@ public class BookingServiceTests : IDisposable
     public async Task GetBookingByIdAsync_ReflectsStatusChange_AfterUpdate()
     {
         var ev = await CreateTestEvent();
-        var created = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var created = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -114,7 +114,7 @@ public class BookingServiceTests : IDisposable
     [Fact]
     public async Task CreateBookingAsync_Throws_WhenEventDoesNotExist()
     {
-        await Assert.ThrowsAsync<NotFoundException>(() => CreateBookingService().CreateBookingAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<NotFoundException>(() => CreateBookingService().CreateBookingAsync(Guid.NewGuid(), Guid.NewGuid()));
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class BookingServiceTests : IDisposable
         var ev = await CreateTestEvent();
         await CreateEventService().DeleteEvent(ev.Id);
 
-        await Assert.ThrowsAsync<NotFoundException>(() => CreateBookingService().CreateBookingAsync(ev.Id));
+        await Assert.ThrowsAsync<NotFoundException>(() => CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid()));
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class BookingServiceTests : IDisposable
     {
         var ev = await CreateTestEvent(totalSeats: 5);
 
-        await CreateBookingService().CreateBookingAsync(ev.Id);
+        await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         var result = await CreateEventService().GetEventById(ev.Id);
         Assert.Equal(4, result.AvailableSeats);
@@ -148,9 +148,9 @@ public class BookingServiceTests : IDisposable
     {
         var ev = await CreateTestEvent(totalSeats: 3);
 
-        var first = await CreateBookingService().CreateBookingAsync(ev.Id);
-        var second = await CreateBookingService().CreateBookingAsync(ev.Id);
-        var third = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var first = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
+        var second = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
+        var third = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         var ids = new[] { first.Id, second.Id, third.Id };
         Assert.Equal(3, ids.Distinct().Count());
@@ -163,16 +163,16 @@ public class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_Throws_WhenSeatsExhausted()
     {
         var ev = await CreateTestEvent(totalSeats: 1);
-        await CreateBookingService().CreateBookingAsync(ev.Id);
+        await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
-        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => CreateBookingService().CreateBookingAsync(ev.Id));
+        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid()));
     }
 
     [Fact]
     public async Task ReleaseSeats_AfterReject_RestoresAvailableSeats()
     {
         var ev = await CreateTestEvent(totalSeats: 1);
-        var booking = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var booking = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -192,7 +192,7 @@ public class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_SucceedsAgain_AfterPreviousBookingReleasedSeat()
     {
         var ev = await CreateTestEvent(totalSeats: 1);
-        var firstBooking = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var firstBooking = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -204,7 +204,7 @@ public class BookingServiceTests : IDisposable
             await context.SaveChangesAsync();
         }
 
-        var secondBooking = await CreateBookingService().CreateBookingAsync(ev.Id);
+        var secondBooking = await CreateBookingService().CreateBookingAsync(ev.Id, Guid.NewGuid());
 
         Assert.NotEqual(firstBooking.Id, secondBooking.Id);
 
@@ -226,7 +226,7 @@ public class BookingServiceTests : IDisposable
             {
                 using var scope = _serviceProvider.CreateScope();
                 var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
-                await bookingService.CreateBookingAsync(ev.Id);
+                await bookingService.CreateBookingAsync(ev.Id, Guid.NewGuid());
                 Interlocked.Increment(ref successCount);
             }
             catch (NoAvailableSeatsException)
@@ -255,7 +255,7 @@ public class BookingServiceTests : IDisposable
         {
             using var scope = _serviceProvider.CreateScope();
             var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
-            var booking = await bookingService.CreateBookingAsync(ev.Id);
+            var booking = await bookingService.CreateBookingAsync(ev.Id, Guid.NewGuid());
             bookings.Add(booking);
         })).ToArray();
 
@@ -271,7 +271,7 @@ public class BookingTests
     [Fact]
     public void Confirm_SetsStatusConfirmedAndProcessedAt()
     {
-        var booking = Booking.Create(Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var booking = Booking.Create(Guid.NewGuid(), Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
 
         booking.Confirm();
 
@@ -282,7 +282,7 @@ public class BookingTests
     [Fact]
     public void Reject_SetsStatusRejectedAndProcessedAt()
     {
-        var booking = Booking.Create(Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
+        var booking = Booking.Create(Guid.NewGuid(), Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
 
         booking.Reject();
 
