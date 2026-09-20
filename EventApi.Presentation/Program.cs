@@ -1,25 +1,43 @@
-using EventApi.Application.Abstractions;
 using EventApi.Application.DependencyInjection;
 using EventApi.Application.Options;
 using EventApi.Application.Services;
-using EventApi.Domain.Entities;
 using EventApi.Infrastructure.DependencyInjection;
 using EventApi.Infrastructure.Persistence;
-using EventApi.Infrastructure.Security;
 using EventApi.Presentation.Exceptions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.OpenApi;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddControllers();
+  builder.Services.AddSwaggerGen(options =>                                                                
+  {                                                                                                        
+      options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme                                    
+      {                                                                                                    
+          Name = "Authorization",                                                                          
+          Type = SecuritySchemeType.Http,                                                                  
+          Scheme = "Bearer",                                                                               
+          BearerFormat = "JWT",                                                                            
+          In = ParameterLocation.Header,                                                                   
+          Description = "Введите токен в формате: Bearer {ваш токен}"                                      
+      });                                                                                                  
+                                                                                                           
+      options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement                                             
+      {                                                                                                        
+          { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() }                                 
+      });                                                                                                 
+  });     
+  builder.Services.AddControllers()                                                                        
+      .AddJsonOptions(options =>                                                                           
+      {                                                                                                    
+          options.JsonSerializerOptions.Converters.Add(new                                                 
+              System.Text.Json.Serialization.JsonStringEnumConverter());                                               
+      });       
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHostedService<BookingBackgroundService>();

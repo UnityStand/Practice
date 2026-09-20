@@ -14,10 +14,10 @@ EventApi.Infrastructure ----------┘
 
 | Проект | Назначение | Зависит от |
 |---|---|---|
-| `EventApi.Domain` | Доменные сущности (`Event`, `Booking`, `BookingStatus`) и доменные исключения (`NotFoundException`, `NoAvailableSeatsException`, `EventHasBookingsException`). Никаких ссылок на фреймворки — ни ASP.NET Core, ни EF Core. | — |
-| `EventApi.Application` | Бизнес-логика: `EventService`/`BookingService` (use cases), `BookingBackgroundService`, DTO, порты — интерфейсы `IEventRepository`/`IBookingRepository` (описывают, что нужно от хранилища, но не как оно устроено). | `EventApi.Domain` |
-| `EventApi.Infrastructure` | Реализация портов: `AppDbContext`, `EventRepository`/`BookingRepository`, EF-конфигурации (`IEntityTypeConfiguration`), миграции. Здесь и только здесь есть зависимость на `Microsoft.EntityFrameworkCore`/`Npgsql`. | `EventApi.Application`, `EventApi.Domain` |
-| `EventApi.Presentation` | Контроллеры, `GlobalExceptionHandlingMiddleware` (маппинг доменных исключений в HTTP-статусы), `Program.cs` — composition root, регистрирующий зависимости через `AddApplicationServices()`/`AddInfrastructureServices()`. | `EventApi.Application`, `EventApi.Infrastructure` |
+| `EventApi.Domain` | Доменные сущности (`Event`, `Booking`, `BookingStatus`, `User`, `UserRole`) и доменные исключения (`NotFoundException`, `NoAvailableSeatsException`, `EventHasBookingsException`, `EventAlreadyStartedException`, `BookingLimitExceededException`, `ForbiddenException`). Никаких ссылок на фреймворки — ни ASP.NET Core, ни EF Core. | — |
+| `EventApi.Application` | Бизнес-логика: `EventService`/`BookingService`/`UserService` (use cases), `BookingBackgroundService`, DTO, порты — интерфейсы `IEventRepository`/`IBookingRepository`/`IUserRepository`/`IPasswordHasher`/`IJwtTokenService` (описывают, что нужно от хранилища и инфраструктуры безопасности, но не как это устроено). | `EventApi.Domain` |
+| `EventApi.Infrastructure` | Реализация портов: `AppDbContext`, `EventRepository`/`BookingRepository`/`UserRepository`, EF-конфигурации (`IEntityTypeConfiguration`), миграции, `PasswordHasher` (SHA-256), `JwtTokenService` (генерация JWT). Здесь и только здесь есть зависимость на `Microsoft.EntityFrameworkCore`/`Npgsql`/`System.IdentityModel.Tokens.Jwt`. | `EventApi.Application`, `EventApi.Domain` |
+| `EventApi.Presentation` | Контроллеры (включая `AuthController`), `GlobalExceptionHandlingMiddleware` (маппинг доменных исключений в HTTP-статусы), JWT-аутентификация/авторизация, `Program.cs` — composition root, регистрирующий зависимости через `AddApplicationServices()`/`AddInfrastructureServices()`. | `EventApi.Application`, `EventApi.Infrastructure` |
 
 Ключевое правило: `EventApi.Application` **не** ссылается на `EventApi.Infrastructure` — бизнес-логика ничего не знает о конкретном способе хранения данных, только об абстракциях (`IEventRepository`/`IBookingRepository`).
 
@@ -40,6 +40,25 @@ EventApi.Infrastructure ----------┘
 ```
 
 Поправь `Host`/`Port`/`Username`/`Password` под свой инстанс PostgreSQL (или удобнее — через `appsettings.Development.json` / переменные окружения, чтобы не коммитить реальные креды).
+
+## Настройка JWT
+
+Параметры JWT-токена задаются в `EventApi.Presentation/appsettings.json`:
+
+```json
+{
+  "Jwt": {
+    "Secret": "замени-на-длинную-случайную-строку-минимум-32-символа",
+    "Issuer": "EventApi",
+    "Audience": "EventApiClient",
+    "ExpiryMinutes": 60
+  }
+}
+```
+
+- `Secret` — ключ, которым подписывается и проверяется токен (алгоритм HMAC-SHA256). **Важно**: значение в репозитории — только для локальной разработки и учебных целей. В продакшне секрет должен быть настоящим случайным значением (например, `openssl rand -base64 32`), храниться вне репозитория (переменная окружения, секрет-менеджер типа Azure Key Vault / AWS Secrets Manager) и никогда не попадать в git.
+- `Issuer`/`Audience` — должны совпадать между генерацией токена (`JwtTokenService`) и его проверкой (`Program.cs`, `TokenValidationParameters`) — иначе валидный токен будет отклонён.
+- `ExpiryMinutes` — время жизни токена в минутах.
 
 ## Запуск
 
@@ -80,6 +99,64 @@ dotnet ef database update --project EventApi.Infrastructure --startup-project Ev
 http://localhost:5047/swagger
 ```
 
+## Аутентификация и роли
+
+API защищено JWT-аутентификацией (`Microsoft.AspNetCore.Authentication.JwtBearer`). У пользователя (`User`) есть логин, хеш пароля (SHA-256, реализация — `PasswordHasher` в `EventApi.Infrastructure`) и роль:
+
+| Роль | Значение в enum `UserRole` | Права |
+|---|---|---|
+| Обычный пользователь | `Customer` | бронирование событий, просмотр и отмена **своих** броней |
+| Администратор | `Admin` | всё то же плюс создание/редактирование/удаление событий, отмена **любой** чужой брони |
+
+### Эндпоинты аутентификации
+
+Базовый путь: `/auth`. Оба эндпоинта доступны без токена.
+
+| Метод | Путь | Описание | Успех | Ошибки |
+|---|---|---|---|---|
+| POST | `/auth/register` | регистрация нового пользователя | 204 | 400 (логин уже занят / ошибка валидации) |
+| POST | `/auth/login` | вход, возвращает JWT-токен | 200 | 400 (неверный логин или пароль) |
+
+Тело `POST /auth/register`:
+```json
+{
+  "login": "user1",
+  "password": "Pass123!",
+  "role": "Customer"
+}
+```
+`role` необязательное поле, по умолчанию `Customer`; для удобства тестирования допустимо передать `"Admin"`, чтобы сразу создать администратора.
+
+Тело `POST /auth/login`:
+```json
+{
+  "login": "user1",
+  "password": "Pass123!"
+}
+```
+Ответ:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+При неверном логине и при неверном пароле возвращается **одно и то же** сообщение об ошибке (`"Invalid login or password"`) — это защита от перебора: по ответу нельзя понять, существует ли такой логин в системе.
+
+### Как получить и использовать токен в Swagger
+
+1. Откройте `http://localhost:<port>/swagger`.
+2. Выполните `POST /auth/register`, затем `POST /auth/login` (через "Try it out") — в ответе будет поле `token`.
+3. Скопируйте значение `token` (без слова `Bearer`, только сам токен).
+4. Нажмите кнопку **Authorize** вверху страницы Swagger, вставьте токен в поле и подтвердите — Swagger сам добавит заголовок `Authorization: Bearer <токен>` ко всем последующим запросам из UI.
+5. Теперь запросы к защищённым эндпоинтам будут проходить аутентификацию. Роль в токене определяет, какие из них доступны (см. таблицы ниже — `[Authorize(Roles = "Admin")]` на создании/изменении/удалении событий).
+
+### Защищённые эндпоинты
+
+- `POST /events`, `PUT /events/{id}`, `DELETE /events/{id}` — только роль `Admin` (401 без токена, 403 для `Customer`).
+- `POST /events/{id}/book`, `GET /bookings/{id}`, `DELETE /bookings/{id}` — любой аутентифицированный пользователь (401 без токена); `userId` берётся из claim токена (`ClaimTypes.NameIdentifier`), а не из тела запроса.
+- `GET /events`, `GET /events/{id}` — открыты без токена.
+
 ## Модель Event
 
 | Поле | Тип | Обязательное | Описание |
@@ -96,13 +173,13 @@ http://localhost:5047/swagger
 
 Базовый путь: `/events`
 
-| Метод | Путь | Описание | Успех | Ошибки |
-|---|---|---|---|---|
-| GET | `/events` | список событий (с фильтрацией и пагинацией) | 200 | — |
-| GET | `/events/{id}` | событие по id | 200 | 404 |
-| POST | `/events` | создать событие | 201 | 400 |
-| PUT | `/events/{id}` | обновить событие целиком | 200 | 400, 404 |
-| DELETE | `/events/{id}` | удалить событие | 204 | 404 |
+| Метод | Путь | Описание | Успех | Ошибки | Доступ |
+|---|---|---|---|---|---|
+| GET | `/events` | список событий (с фильтрацией и пагинацией) | 200 | — | любой |
+| GET | `/events/{id}` | событие по id | 200 | 404 | любой |
+| POST | `/events` | создать событие | 201 | 400, 401, 403 | только `Admin` |
+| PUT | `/events/{id}` | обновить событие целиком | 200 | 400, 404, 401, 403 | только `Admin` |
+| DELETE | `/events/{id}` | удалить событие | 204 | 404, 401, 403 | только `Admin` |
 
 ## Фильтрация и пагинация (`GET /events`)
 
@@ -160,18 +237,28 @@ GET /events?title=стендап&page=2&pageSize=5
 |---|---|---|
 | `Id` | Guid | генерируется сервером |
 | `EventId` | Guid | id события, к которому относится бронь |
-| `Status` | `Pending` \| `Confirmed` \| `Rejected` | текущий статус брони, сериализуется как строка |
+| `UserId` | Guid | id пользователя-владельца брони (берётся из JWT при создании, а не из тела запроса) |
+| `Status` | `Pending` \| `Confirmed` \| `Rejected` \| `Cancelled` | текущий статус брони, сериализуется как строка |
 | `CreatedAt` | DateTime | момент создания брони |
-| `ProcessedAt` | DateTime? | момент, когда фоновый сервис подтвердил или отклонил бронь; `null`, пока бронь `Pending` |
+| `ProcessedAt` | DateTime? | момент, когда бронь была подтверждена/отклонена/отменена; `null`, пока бронь `Pending` |
 
 ## Эндпоинты Booking
 
+Все эндпоинты требуют аутентификации (401 без токена).
+
 | Метод | Путь | Описание | Успех | Ошибки |
 |---|---|---|---|---|
-| POST | `/events/{id}/book` | создать бронь на событие | 202 Accepted | 404 (событие не найдено), 409 (нет свободных мест) |
+| POST | `/events/{id}/book` | создать бронь на событие | 202 Accepted | 400 (событие уже началось), 404 (событие не найдено), 409 (нет свободных мест или превышен лимит активных броней) |
 | GET | `/bookings/{id}` | получить текущее состояние брони | 200 | 404 |
+| DELETE | `/bookings/{id}` | отменить бронь | 204 | 403 (нет прав — не владелец и не `Admin`), 404 |
 
 Бронь создаётся сразу в статусе `Pending` и подтверждается фоновым сервисом асинхронно — статус нужно перепроверять через `GET /bookings/{id}`.
+
+### Бизнес-правила бронирования
+
+- **Событие уже началось.** Нельзя забронировать событие, если `Event.StartAt` уже наступил — `EventAlreadyStartedException` → `400 Bad Request`.
+- **Лимит активных броней на пользователя.** Настраивается в `appsettings.json` (секция `BookingSettings:MaxActiveBookingsPerUser`, по умолчанию `10`) и учитывает брони в статусах `Pending`/`Confirmed`. При превышении — `BookingLimitExceededException` → `409 Conflict`, сообщение содержит само значение лимита. Лимиты разных пользователей друг на друга не влияют.
+- **Отмена брони.** Пользователь может отменить только свою бронь; администратор (`Admin`) — любую. Нарушение — `ForbiddenException` → `403 Forbidden`. Повторная отмена уже отменённой брони запрещена доменной моделью (`400 Bad Request`).
 
 ### Пример ответа
 
@@ -185,11 +272,15 @@ GET /events?title=стендап&page=2&pageSize=5
 }
 ```
 
+(`userId` в ответе не возвращается намеренно — клиент и так знает, кто он, по своему собственному токену)
+
 ## База данных и EF Core
 
-Данные хранятся в PostgreSQL через `AppDbContext` (`EventApi.Infrastructure/Persistence/AppDbContext.cs`). Маппинг сущностей на таблицы описан через Fluent API в `EventApi.Infrastructure/Persistence/Configurations/EventConfiguration.cs`/`BookingConfiguration.cs`:
+Данные хранятся в PostgreSQL через `AppDbContext` (`EventApi.Infrastructure/Persistence/AppDbContext.cs`). Маппинг сущностей на таблицы описан через Fluent API в `EventApi.Infrastructure/Persistence/Configurations/EventConfiguration.cs`/`BookingConfiguration.cs`/`UserConfiguration.cs`:
 
-- `Id` у обеих сущностей — `ValueGeneratedNever()`: идентификатор генерируется в коде (в `Event.Create(...)`/`Booking.Create(...)`), а не базой данных.
+- Таблица `Users`: `Login` с уникальным индексом (`HasIndex(...).IsUnique()`) — на уровне БД гарантирует то же самое, что `UserService.RegisterAsync` уже проверяет на уровне приложения. `Role` хранится как строка (`HasConversion<string>()`), как и `Booking.Status`.
+- `Bookings.UserId` — внешний ключ на `Users.Id` (`OnDelete(DeleteBehavior.Restrict)`), настроен в `BookingConfiguration.cs`.
+- `Id` у сущностей — `ValueGeneratedNever()`: идентификатор генерируется в коде (в `Event.Create(...)`/`Booking.Create(...)`/`User.Create(...)`), а не базой данных.
 - `Booking.Status` (enum) хранится в БД как строка (`HasConversion<string>()`), а не как число — это защищает существующие данные от порчи, если порядок значений `BookingStatus` когда-нибудь изменится.
 - Связь `Event` → `Booking` (один-ко-многим) настроена с `OnDelete(DeleteBehavior.Restrict)`: удалить событие с активными бронями нельзя — `EventService.DeleteEvent` сначала проверяет наличие броней через репозиторий и бросает `EventHasBookingsException` (`409 Conflict`), не давая базе самой отказать менее понятной ошибкой нарушения внешнего ключа.
 
@@ -241,11 +332,13 @@ GET /events?title=стендап&page=2&pageSize=5
 
 ## Пример сценария с овербукингом
 
+Все запросы ниже, кроме `GET`, требуют заголовок `Authorization: Bearer <токен>` (см. раздел «Аутентификация и роли»).
+
 ```
-POST /events   { "title": "Test Event", "totalSeats": 3, ... }
+POST /events   { "title": "Test Event", "totalSeats": 3, ... }   (токен Admin)
   → 201, тело содержит Id события
 
-POST /events/{id}/book   (x3)
+POST /events/{id}/book   (x3, токен любого пользователя)
   → 202 Accepted, "status": "Pending" в каждом ответе
 
 POST /events/{id}/book   (4-й раз)
@@ -268,7 +361,8 @@ GET /bookings/{bookingId}
 Каждый тестовый класс получает свою собственную, уникальную InMemory-базу (новый `Guid` на конструктор класса — xUnit создаёт новый экземпляр класса на каждый `[Fact]`, так что тесты гарантированно не влияют друг на друга). Важный нюанс: имя базы обязательно выносится в переменную **до** лямбды `AddDbContext(...)` — если вызвать `Guid.NewGuid()` прямо внутри неё, каждый `CreateScope()` получит свою отдельную базу, и данные между scope-ами перестанут быть общими.
 
 - `EventServiceTest.cs` — CRUD-сценарии `EventService`: создание (включая валидацию `TotalSeats`/дат), получение по id, фильтрация, пагинация, обновление, удаление (включая `EventHasBookingsException`, когда у события есть активные брони).
-- `BookingServiceTest.cs` — сценарии `BookingService`: успешное и неуспешное создание брони, уменьшение `AvailableSeats`, исчерпание мест (`NoAvailableSeatsException`), восстановление места после `Reject()`/`ReleaseSeats()`, переходы статуса брони (`Confirm`/`Reject`), а также тесты на конкурентность — защита от овербукинга и уникальность Id брони при параллельных запросах. Для параллельных тестов каждая задача открывает свой `_serviceProvider.CreateScope()` (свой `AppDbContext`), а не переиспользует общий сервис — иначе тест проверял бы не реальную гонку, а последовательный доступ к одному объекту.
+- `BookingServiceTest.cs` — сценарии `BookingService`: успешное и неуспешное создание брони, уменьшение `AvailableSeats`, исчерпание мест (`NoAvailableSeatsException`), восстановление места после `Reject()`/`ReleaseSeats()`, переходы статуса брони (`Confirm`/`Reject`/`Cancel`), а также тесты на конкурентность — защита от овербукинга и уникальность Id брони при параллельных запросах. Для параллельных тестов каждая задача открывает свой `_serviceProvider.CreateScope()` (свой `AppDbContext`), а не переиспользует общий сервис — иначе тест проверял бы не реальную гонку, а последовательный доступ к одному объекту.
+  - Отдельно покрыты новые бизнес-правила: бронирование уже начавшегося события (`EventAlreadyStartedException`), превышение лимита активных броней одного пользователя (`BookingLimitExceededException`, включая проверку, что место при этом не резервируется), независимость лимитов между разными пользователями, и отмена брони — успешная для владельца/администратора и `ForbiddenException` для постороннего пользователя.
 
 Тестовый проект ссылается напрямую на `EventApi.Application` и `EventApi.Infrastructure` (а не на `EventApi.Presentation`) — юнит-тестам не нужен веб-слой, только бизнес-логика и (для `AppDbContext`/InMemory-провайдера) слой доступа к данным. `EventService`/`BookingService` — публичные классы в `EventApi.Application.Services`, доступ к ним не требует никаких `InternalsVisibleTo`.
 
