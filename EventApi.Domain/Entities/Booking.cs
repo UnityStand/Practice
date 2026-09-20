@@ -38,8 +38,8 @@ public class Booking
 
     public void Reject()
     {
-        if (Status != BookingStatus.Rejected)
-            throw new ValidationException("The booking is already rejected");
+        if (Status != BookingStatus.Pending)                                                                 
+            throw new ValidationException("The booking is already processed");          
         Status = BookingStatus.Rejected;
         ProcessedAt = DateTime.UtcNow;
     }

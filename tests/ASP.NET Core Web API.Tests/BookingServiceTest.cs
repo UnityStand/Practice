@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using EventApi.Application.Abstractions;
+using EventApi.Application.Options;
 using EventApi.Application.Services;
 using EventApi.Domain.Entities;
 using EventApi.Domain.Exceptions;
@@ -23,6 +24,7 @@ public class BookingServiceTests : IDisposable
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IBookingService, BookingService>();
+        services.Configure<BookingSettings>(o => o.MaxActiveBookingsPerUser = 10);
         _serviceProvider = services.BuildServiceProvider();
     }
 
@@ -52,7 +54,8 @@ public class BookingServiceTests : IDisposable
 
     private async Task<Event> CreateTestEvent(string title = "Test Event", int totalSeats = 10)
     {
-        return await CreateEventService().CreateEvent(title, null, DateTime.UtcNow, DateTime.UtcNow.AddHours(2), totalSeats);
+        return await CreateEventService().CreateEvent(
+            title, null, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(3), totalSeats);
     }
 
     [Fact]
@@ -263,6 +266,111 @@ public class BookingServiceTests : IDisposable
 
         Assert.Equal(concurrentRequests, bookings.Count);
         Assert.Equal(concurrentRequests, bookings.Select(b => b.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_Throws_WhenEventAlreadyStarted()
+    {
+        var pastEvent = await CreateEventService().CreateEvent(
+            "Past Event", null, DateTime.UtcNow.AddDays(-2), DateTime.UtcNow.AddDays(-1), 10);
+
+        await Assert.ThrowsAsync<EventAlreadyStartedException>(
+            () => CreateBookingService().CreateBookingAsync(pastEvent.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_Throws_WhenUserReachesBookingLimit()
+    {
+        var ev = await CreateTestEvent(totalSeats: 20);
+        var userId = Guid.NewGuid();
+
+        for (var i = 0; i < 10; i++)
+            await CreateBookingService().CreateBookingAsync(ev.Id, userId);
+
+        await Assert.ThrowsAsync<BookingLimitExceededException>(
+            () => CreateBookingService().CreateBookingAsync(ev.Id, userId));
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_DoesNotConsumeSeat_WhenBookingLimitReached()
+    {
+        var ev = await CreateTestEvent(totalSeats: 20);
+        var userId = Guid.NewGuid();
+
+        for (var i = 0; i < 10; i++)
+            await CreateBookingService().CreateBookingAsync(ev.Id, userId);
+
+        await Assert.ThrowsAsync<BookingLimitExceededException>(
+            () => CreateBookingService().CreateBookingAsync(ev.Id, userId));
+
+        var result = await CreateEventService().GetEventById(ev.Id);
+        Assert.Equal(10, result.AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_LimitsAreIndependent_BetweenDifferentUsers()
+    {
+        var ev = await CreateTestEvent(totalSeats: 20);
+        var userA = Guid.NewGuid();
+        var userB = Guid.NewGuid();
+
+        for (var i = 0; i < 10; i++)
+            await CreateBookingService().CreateBookingAsync(ev.Id, userA);
+
+        await Assert.ThrowsAsync<BookingLimitExceededException>(
+            () => CreateBookingService().CreateBookingAsync(ev.Id, userA));
+
+        var bookingForB = await CreateBookingService().CreateBookingAsync(ev.Id, userB);
+        Assert.Equal(userB, bookingForB.UserId);
+    }
+
+    [Fact]
+    public async Task CancelBookingAsync_CancelsOwnBooking_AndReleasesSeat()
+    {
+        var ev = await CreateTestEvent(totalSeats: 1);
+        var userId = Guid.NewGuid();
+        var booking = await CreateBookingService().CreateBookingAsync(ev.Id, userId);
+
+        await CreateBookingService().CancelBookingAsync(booking.Id, userId, UserRole.Customer);
+
+        var cancelled = await CreateBookingService().GetBookingByIdAsync(booking.Id);
+        Assert.Equal(BookingStatus.Cancelled, cancelled.Status);
+
+        var result = await CreateEventService().GetEventById(ev.Id);
+        Assert.Equal(1, result.AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CancelBookingAsync_Throws_WhenNotOwnerAndNotAdmin()
+    {
+        var ev = await CreateTestEvent();
+        var ownerId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+        var booking = await CreateBookingService().CreateBookingAsync(ev.Id, ownerId);
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => CreateBookingService().CancelBookingAsync(booking.Id, otherUserId, UserRole.Customer));
+    }
+
+    [Fact]
+    public async Task CancelBookingAsync_AllowsAdmin_ToCancelOthersBooking()
+    {
+        var ev = await CreateTestEvent(totalSeats: 1);
+        var ownerId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var booking = await CreateBookingService().CreateBookingAsync(ev.Id, ownerId);
+
+        await CreateBookingService().CancelBookingAsync(booking.Id, adminId, UserRole.Admin);
+
+        var cancelled = await CreateBookingService().GetBookingByIdAsync(booking.Id);
+        Assert.Equal(BookingStatus.Cancelled, cancelled.Status);
+    }
+
+    [Fact]
+    public async Task CancelBookingAsync_Throws_WhenBookingDoesNotExist()
+    {
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => CreateBookingService().CancelBookingAsync(Guid.NewGuid(), Guid.NewGuid(), UserRole.Customer));
     }
 }
 
