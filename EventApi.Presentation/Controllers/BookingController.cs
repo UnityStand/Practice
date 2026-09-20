@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EventApi.Application.DTOs;
 using EventApi.Application.Services;
+using EventApi.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,6 +28,18 @@ public class BookingController(IBookingService bookingService) : ControllerBase
         var result = BookingResponseDto.FromEntity(booking);
         return AcceptedAtAction(nameof(GetBooking), new { bookingId = booking.Id }, result);
     }
+
+    [HttpDelete("/bookings/{bookingId:Guid}")]        
+    public async Task<IActionResult> DeleteBooking(Guid bookingId)
+    {
+        var userId = GetCurrentUserId();                                                                     
+        var userRole =GetCurrentUserRole();                          
+        await bookingService.CancelBookingAsync(bookingId, userId, userRole);                                
+        return NoContent();      
+    }
     private Guid GetCurrentUserId() =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private UserRole GetCurrentUserRole() =>
+        Enum.Parse<UserRole>(User.FindFirstValue(ClaimTypes.Role)!); 
 }
+
