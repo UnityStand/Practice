@@ -224,7 +224,7 @@ public class EventServiceTests : IDisposable
         using (var scope = _serviceProvider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            context.Bookings.Add(Booking.Create(created.Id, BookingStatus.Pending, DateTime.UtcNow));
+            context.Bookings.Add(Booking.Create(created.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow));
             await context.SaveChangesAsync();
         }
 
@@ -240,7 +240,7 @@ public class EventServiceTests : IDisposable
         using (var scope = _serviceProvider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var booking = Booking.Create(created.Id, BookingStatus.Pending, DateTime.UtcNow);
+            var booking = Booking.Create(created.Id, Guid.NewGuid(), BookingStatus.Pending, DateTime.UtcNow);
             booking.Reject();
             context.Bookings.Add(booking);
             await context.SaveChangesAsync();

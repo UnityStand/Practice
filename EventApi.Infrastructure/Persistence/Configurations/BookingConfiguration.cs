@@ -11,6 +11,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.ToTable("Bookings");
 
         builder.HasKey(e => e.Id);
+        builder.HasOne(b => b.User)
+            .WithMany()
+            .HasForeignKey(b => b.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(e => e.Id).ValueGeneratedNever();
 
         builder.HasOne(b => b.Event)
