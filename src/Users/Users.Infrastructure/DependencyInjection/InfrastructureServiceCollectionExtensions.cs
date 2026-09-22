@@ -20,7 +20,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IUserService, UserService>();
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));    
  
         return services;
