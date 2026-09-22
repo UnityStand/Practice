@@ -1,8 +1,8 @@
-﻿using EventApi.Application.Abstractions;
-using EventApi.Domain.Entities;
+using Users.Application.Abstractions;
+using Users.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace EventApi.Infrastructure.Persistence;
+namespace Users.Infrastructure.Persistence;
 
 public class UserRepository(UsersDbContext context) : IUserRepository
 

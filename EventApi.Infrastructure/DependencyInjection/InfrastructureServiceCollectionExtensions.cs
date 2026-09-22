@@ -20,9 +20,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+ 
         return services;
     }
 }

@@ -55,7 +55,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
+        ValidateIssuer = true,  
         ValidIssuer = jwtSection["Issuer"],
         ValidateAudience = true,
         ValidAudience = jwtSection["Audience"],
