@@ -26,6 +26,7 @@ public class GlobalExceptionHandlingMiddleware : IExceptionHandler
         {
             ValidationException => StatusCodes.Status400BadRequest,
             NotFoundException => StatusCodes.Status404NotFound,
+            EventHasBookingsException => StatusCodes.Status409Conflict,      
             _ => StatusCodes.Status500InternalServerError
         };
         //  3. собрать ProblemDetails (Status, Title/Detail)

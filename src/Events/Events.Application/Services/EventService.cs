@@ -6,7 +6,7 @@ using Events.Domain.Exceptions;
 namespace Events.Application.Services;
 
 public class EventService(IEventRepository
-    eventRepository) : IEventService
+    eventRepository,IProcessedBookingRepository processedBookingRepository) : IEventService
 {
 
     private async Task<Event> FindEventOrThrow(Guid id)
@@ -53,8 +53,10 @@ public class EventService(IEventRepository
     }
 
     public async Task<bool> DeleteEvent(Guid id)
-    {
+    {   
         var existingEvent = await FindEventOrThrow(id);
+        if (await processedBookingRepository.AnyForEventAsync(id))                                                                           
+            throw new EventHasBookingsException("Cannot delete event with any bookings");   
         await eventRepository.RemoveAsync(existingEvent);
 
         return true;

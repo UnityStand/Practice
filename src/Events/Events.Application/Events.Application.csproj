@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Events.Domain\Events.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\EventApi.Contracts\EventApi.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
