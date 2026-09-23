@@ -10,7 +10,7 @@ public class Booking
     public BookingStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
-
+    public int Seats => 1;
     private Booking() { }
 
     public static Booking Create(Guid eventId, Guid userId, BookingStatus status, DateTime createdAt)

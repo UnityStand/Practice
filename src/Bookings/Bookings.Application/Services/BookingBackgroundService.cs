@@ -1,12 +1,13 @@
 using Bookings.Application.Abstractions;
 using Bookings.Domain.Entities;
+using EventApi.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Bookings.Application.Services;
 
-public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger<BookingBackgroundService> logger) : BackgroundService
+public class BookingBackgroundService(IBookingEventPublisher publisher,IServiceScopeFactory scopeFactory, ILogger<BookingBackgroundService> logger) : BackgroundService
 {
     private const int PollingIntervalMs = 1000;
     private const int ProcessingDelayMs = 1000;
@@ -44,7 +45,7 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
             if (booking is null || booking.Status != BookingStatus.Pending) return;
 
             booking.Reject();
-
+            
             await bookingRepository.UpdateAsync(booking);
         }
         catch (Exception compensationError)
@@ -74,6 +75,13 @@ public class BookingBackgroundService(IServiceScopeFactory scopeFactory, ILogger
 
             booking.Confirm();
             await bookingRepository.UpdateAsync(booking);
+            await publisher.PublishAsync(new BookingConfirmed(                                                                             
+                    BookingId:   booking.Id,                                                                                               
+                    EventId:     booking.EventId,                                                                                          
+                    UserId:      booking.UserId,                                                                                           
+                    Confirmed:   booking.ProcessedAt!.Value,                                                                               
+                    BookedSeats: booking.Seats),                                                                                           
+                stoppingToken);     
             logger.LogInformation("Booking {BookingId} confirmed", booking.Id);
 
         }
