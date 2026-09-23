@@ -1,20 +1,18 @@
-﻿using Events.Application.Abstractions;
-using Events.Infrastructure.Persistence;
+﻿using Bookings.Application.Abstractions;
+using Bookings.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Events.Infrastructure.DependencyInjection;
+namespace Bookings.Infrastructure.DependencyInjection;
 
 public static class InfrastructureServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<EventDbContext>(options => options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-
-
-        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddDbContext<BookingDbContext>(options => options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        services.AddScoped<IBookingRepository, BookingRepository>();
 
 
         return services;

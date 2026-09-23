@@ -11,40 +11,40 @@ using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>                                                                
-{                                                                                                        
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme                                    
-    {                                                                                                    
-        Name = "Authorization",                                                                          
-        Type = SecuritySchemeType.Http,                                                                  
-        Scheme = "Bearer",                                                                               
-        BearerFormat = "JWT",                                                                            
-        In = ParameterLocation.Header,                                                                   
-        Description = "Введите токен в формате: Bearer {ваш токен}"                                      
-    });                                                                                                  
-                                                                                                           
-    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement                                             
-    {                                                                                                        
-        { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() }                                 
-    });                                                                                                 
-});  
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Введите токен в формате: Bearer {ваш токен}"
+    });
+
+    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() }
+    });
+});
 builder.Services.AddControllers()
-    .AddJsonOptions(options =>                                                                           
-    {                                                                                                    
-        options.JsonSerializerOptions.Converters.Add(new                                                 
-            System.Text.Json.Serialization.JsonStringEnumConverter());                                               
-    });                                  
-builder.Services.AddInfrastructureServices(builder.Configuration);                                                    
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new
+            System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddApplicationServices();
-builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();   
+builder.Services.AddExceptionHandler<GlobalExceptionHandlingMiddleware>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,  
+        ValidateIssuer = true,
         ValidIssuer = jwtSection["Issuer"],
         ValidateAudience = true,
         ValidAudience = jwtSection["Audience"],
@@ -53,7 +53,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Secret"]!))
     };
 });
-builder.Services.AddAuthorization();   
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -66,16 +66,16 @@ using (var scope = app.Services.CreateScope())
 }
 if (app.Environment.IsDevelopment())
 {
-     app.UseSwagger();
-     app.UseSwaggerUI();
-     
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
 }
 
-app.UseAuthentication();   
-app.UseAuthorization();    
-                                                                                                       
+app.UseAuthentication();
+app.UseAuthorization();
 
 
-app.MapControllers();       
+
+app.MapControllers();
 
 app.Run();

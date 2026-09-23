@@ -15,29 +15,29 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddEndpointsApiExplorer();
-  builder.Services.AddSwaggerGen(options =>                                                                
-  {                                                                                                        
-      options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme                                    
-      {                                                                                                    
-          Name = "Authorization",                                                                          
-          Type = SecuritySchemeType.Http,                                                                  
-          Scheme = "Bearer",                                                                               
-          BearerFormat = "JWT",                                                                            
-          In = ParameterLocation.Header,                                                                   
-          Description = "Введите токен в формате: Bearer {ваш токен}"                                      
-      });                                                                                                  
-                                                                                                           
-      options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement                                             
-      {                                                                                                        
-          { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() }                                 
-      });                                                                                                 
-  });     
-  builder.Services.AddControllers()                                                                        
-      .AddJsonOptions(options =>                                                                           
-      {                                                                                                    
-          options.JsonSerializerOptions.Converters.Add(new                                                 
-              System.Text.Json.Serialization.JsonStringEnumConverter());                                               
-      });       
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Введите токен в формате: Bearer {ваш токен}"
+    });
+
+    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+    {
+          { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() }
+    });
+});
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new
+            System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHostedService<BookingBackgroundService>();
@@ -50,12 +50,12 @@ builder.Services.Configure<BookingSettings>(builder.Configuration.GetSection("Bo
 
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-    
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,  
+        ValidateIssuer = true,
         ValidIssuer = jwtSection["Issuer"],
         ValidateAudience = true,
         ValidAudience = jwtSection["Audience"],
@@ -64,7 +64,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Secret"]!))
     };
 });
-builder.Services.AddAuthorization();   
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 

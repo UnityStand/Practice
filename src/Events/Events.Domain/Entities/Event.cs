@@ -14,7 +14,7 @@ public class Event
     public int AvailableSeats { get; private set; }
 
     private Event() { }
-    
+
     public static Event Create(string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
 

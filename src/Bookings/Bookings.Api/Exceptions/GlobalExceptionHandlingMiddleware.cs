@@ -1,29 +1,26 @@
 using System.ComponentModel.DataAnnotations;
+using Bookings.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Users.Api.Exceptions;
+namespace Bookings.Api.Exceptions;
 
-public class GlobalExceptionHandlingMiddleware : IExceptionHandler
+public class GlobalExceptionHandlingMiddleware(ILogger<GlobalExceptionHandlingMiddleware> logger) : IExceptionHandler
 {
-    private readonly ILogger<GlobalExceptionHandlingMiddleware> _logger;
-
-    public GlobalExceptionHandlingMiddleware(ILogger<GlobalExceptionHandlingMiddleware> logger)
-    {
-        _logger = logger;
-    }
-
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
         CancellationToken cancellationToken)
     {
 
-        _logger.LogError(exception, "Unhandled exception on {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
+        logger.LogError(exception, "Unhandled exception on {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
 
         var statusCode = exception switch
         {
             ValidationException => StatusCodes.Status400BadRequest,
+            NotFoundException => StatusCodes.Status404NotFound,
+            ForbiddenException => StatusCodes.Status403Forbidden,
+            BookingLimitExceededException => StatusCodes.Status409Conflict,
 
             _ => StatusCodes.Status500InternalServerError
         };

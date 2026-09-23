@@ -1,4 +1,5 @@
-namespace EventApi.Contracts;                                                                                                         
+namespace EventApi.Contracts;
+
 public sealed record BookingConfirmed(
     Guid BookingId,
     Guid EventId,

@@ -15,13 +15,13 @@ public static class InfrastructureServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.AddDbContext<UsersDbContext>(options => options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-       
+
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
-        
+
         services.AddScoped<IUserRepository, UserRepository>();
-        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));    
- 
+        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+
         return services;
     }
 }

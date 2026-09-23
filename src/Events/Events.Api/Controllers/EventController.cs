@@ -30,7 +30,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]      
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> PostEvent(CreateEventDto createEventDto)
     {
 
@@ -39,7 +39,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpPut("{eventId:Guid}")]
-    [Authorize(Roles = "Admin")]      
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> PutEvent(Guid eventId, EventRequestDto dto)
     {
 
@@ -49,7 +49,7 @@ public class EventController(IEventService eventService) : ControllerBase
     }
 
     [HttpDelete("{eventId:Guid}")]
-    [Authorize(Roles = "Admin")]      
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteEvent(Guid eventId)
     {
         await eventService.DeleteEvent(eventId);
