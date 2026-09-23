@@ -1,7 +1,6 @@
-﻿using Events.Application.Abstractions;
-using Events.Application.Services;
+﻿using Events.Application.Abstractions;  
+using Events.Infrastructure.Messaging;
 using Events.Infrastructure.Persistence;
-using Events.Infrastructure.Persistence.Migrations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +14,8 @@ public static class InfrastructureServiceCollectionExtensions
     {
         services.AddDbContext<EventDbContext>(options => options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-
+        services.Configure<KafkaOptions>(configuration.GetSection("Kafka"));                                                               
+        services.AddHostedService<KafkaTopicInitializer>(); 
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IProcessedBookingRepository, ProcessedBookingRepository>();
 
