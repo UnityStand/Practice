@@ -1,139 +1,84 @@
-using EventApi.Domain.Entities;
+using Bookings.Domain.Entities;
+using Bookings.Infrastructure.Persistence;
 using Integration.Tests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 
 namespace Integration.Tests;
 
-[Collection("Database")]
-public class BookingRepositoryTests : RepositoryTestBase
+public class BookingRepositoryTests(PostgresContainerFixture fixture)
+    : DatabaseTestBase<BookingDbContext>(fixture, "booking_db_test")
 {
-    public BookingRepositoryTests(PostgresContainerFixture fixture) : base(fixture)
+    protected override BookingDbContext CreateContext(DbContextOptions<BookingDbContext> options) => new(options);
+
+    private BookingRepository Repository => new(Context);
+
+    private static Booking NewBooking(Guid? userId = null, BookingStatus status = BookingStatus.Pending) =>
+        Booking.Create(Guid.NewGuid(), userId ?? Guid.NewGuid(), status, DateTime.UtcNow);
+
+    [Fact]
+    public async Task Migration_CreatesOnlyBookingsTables()
     {
+        var tables = await PublicTablesAsync();
+
+        Assert.Equal(["Bookings", "__EFMigrationsHistory"], tables);
     }
 
-    private async Task<Event> CreatePersistedEventAsync(int totalSeats = 10)
+    // EventId и UserId — просто идентификаторы из других сервисов, без внешних ключей
+    [Fact]
+    public async Task AddAsync_PersistsBooking_WithoutForeignKeysToOtherServices()
     {
-        var testEvent = Event.Create("Test Event", null, DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), totalSeats);
-        await EventRepository.AddAsync(testEvent);
-        return testEvent;
-    }
+        var booking = NewBooking();
 
-    private async Task<Guid> CreatePersistedUserIdAsync()
-    {
-        var user = User.Create($"user-{Guid.NewGuid()}", "hash", UserRole.Customer);
-        await UserRepository.AddAsync(user);
-        return user.Id;
+        await Repository.AddAsync(booking);
+
+        var saved = await NewContext().Bookings.SingleAsync(b => b.Id == booking.Id);
+        Assert.Equal(booking.EventId, saved.EventId);
+        Assert.Equal(booking.UserId, saved.UserId);
     }
 
     [Fact]
-    public async Task GetByIdAsync_WhenBookingExists_ReturnsBooking()
+    public async Task GetByIdAsync_ReturnsNull_WhenNotExists()
     {
-        // Arrange
-        var testEvent = await CreatePersistedEventAsync();
-        var userId = await CreatePersistedUserIdAsync();
-        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
-        await BookingRepository.AddAsync(booking);
-
-        // Act
-        var result = await BookingRepository.GetByIdAsync(booking.Id);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(booking.Id, result!.Id);
-        Assert.Equal(BookingStatus.Pending, result.Status);
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenBookingDoesNotExist_ReturnsNull()
-    {
-        // Act
-        var result = await BookingRepository.GetByIdAsync(Guid.NewGuid());
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task ExistsForEventAsync_WhenBookingExists_ReturnsTrue()
-    {
-        // Arrange
-        var testEvent = await CreatePersistedEventAsync();
-        var userId = await CreatePersistedUserIdAsync();
-        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
-        await BookingRepository.AddAsync(booking);
-
-        // Act
-        var exists = await BookingRepository.ExistsForEventAsync(testEvent.Id);
-
-        // Assert
-        Assert.True(exists);
-    }
-
-    [Fact]
-    public async Task ExistsForEventAsync_WhenNoBookingsForEvent_ReturnsFalse()
-    {
-        // Arrange
-        var testEvent = await CreatePersistedEventAsync();
-
-        // Act
-        var exists = await BookingRepository.ExistsForEventAsync(testEvent.Id);
-
-        // Assert
-        Assert.False(exists);
-    }
-
-    [Fact]
-    public async Task AddAsync_PersistsBooking()
-    {
-        // Arrange
-        var testEvent = await CreatePersistedEventAsync();
-        var userId = await CreatePersistedUserIdAsync();
-        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
-
-        // Act
-        await BookingRepository.AddAsync(booking);
-
-        // Assert
-        var saved = await Context.Bookings.FindAsync(booking.Id);
-        Assert.NotNull(saved);
+        Assert.Null(await Repository.GetByIdAsync(Guid.NewGuid()));
     }
 
     [Fact]
     public async Task UpdateAsync_PersistsStatusChange()
     {
-        // Arrange
-        var testEvent = await CreatePersistedEventAsync();
-        var userId = await CreatePersistedUserIdAsync();
-        var booking = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
-        await BookingRepository.AddAsync(booking);
+        var booking = NewBooking();
+        await Repository.AddAsync(booking);
 
-        // Act
         booking.Confirm();
-        await BookingRepository.UpdateAsync(booking);
+        await Repository.UpdateAsync(booking);
 
-        // Assert
-        var reloaded = await BookingRepository.GetByIdAsync(booking.Id);
+        var reloaded = await new BookingRepository(NewContext()).GetByIdAsync(booking.Id);
         Assert.Equal(BookingStatus.Confirmed, reloaded!.Status);
         Assert.NotNull(reloaded.ProcessedAt);
     }
 
     [Fact]
-    public async Task GetPendingIdsAsync_ReturnsOnlyPendingBookings()
+    public async Task CountActiveBookingsByUserIdAsync_CountsOnlyPendingAndConfirmed()
     {
-        // Arrange
-        var testEvent = await CreatePersistedEventAsync();
-        var userId = await CreatePersistedUserIdAsync();
-        var pending = Booking.Create(testEvent.Id, userId, BookingStatus.Pending, DateTime.UtcNow);
-        var confirmed = Booking.Create(testEvent.Id, userId, BookingStatus.Confirmed, DateTime.UtcNow);
-        var rejected = Booking.Create(testEvent.Id, userId, BookingStatus.Rejected, DateTime.UtcNow);
-        await BookingRepository.AddAsync(pending);
-        await BookingRepository.AddAsync(confirmed);
-        await BookingRepository.AddAsync(rejected);
+        var userId = Guid.NewGuid();
+        await Repository.AddAsync(NewBooking(userId, BookingStatus.Pending));
+        await Repository.AddAsync(NewBooking(userId, BookingStatus.Confirmed));
+        await Repository.AddAsync(NewBooking(userId, BookingStatus.Cancelled));
+        await Repository.AddAsync(NewBooking(userId, BookingStatus.Rejected));
+        await Repository.AddAsync(NewBooking());
 
-        // Act
-        var pendingIds = await BookingRepository.GetPendingIdsAsync();
+        Assert.Equal(2, await Repository.CountActiveBookingsByUserIdAsync(userId));
+    }
 
-        // Assert
-        Assert.Single(pendingIds);
-        Assert.Contains(pending.Id, pendingIds);
+    [Fact]
+    public async Task GetPendingIdsAsync_ReturnsOnlyPending()
+    {
+        var pending = NewBooking(status: BookingStatus.Pending);
+        await Repository.AddAsync(pending);
+        await Repository.AddAsync(NewBooking(status: BookingStatus.Confirmed));
+        await Repository.AddAsync(NewBooking(status: BookingStatus.Rejected));
+
+        var ids = await Repository.GetPendingIdsAsync();
+
+        Assert.Equal([pending.Id], ids);
     }
 }

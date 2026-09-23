@@ -18,8 +18,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHostedService<KafkaTopicInitializer>(); 
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IProcessedBookingRepository, ProcessedBookingRepository>();
-
-
+        services.AddHostedService<BookingConfirmedConsumer>();  
         return services;
     }
 }
