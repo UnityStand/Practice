@@ -22,11 +22,17 @@ public class EventController(IEventService eventService) : ControllerBase
         };
     }
 
+    [HttpGet("top")]
+    public async Task<ActionResult<List<EventResponseDto>>> GetTopEvents()
+    {
+        return Ok(await eventService.GetTopEvents());
+    }
+
     [HttpGet("{eventId:Guid}")]
     public async Task<ActionResult<EventResponseDto>> GetEvent(Guid eventId)
     {
         var ev = await eventService.GetEventById(eventId);
-        return Ok(EventResponseDto.FromEntity(ev));
+        return Ok(ev);
     }
 
     [HttpPost]
@@ -35,7 +41,7 @@ public class EventController(IEventService eventService) : ControllerBase
     {
 
         var newEvent = await eventService.CreateEvent(createEventDto.Title, createEventDto.Description, createEventDto.StartAt, createEventDto.EndAt, createEventDto.TotalSeats!.Value);
-        return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.Id }, EventResponseDto.FromEntity(newEvent));
+        return CreatedAtAction(nameof(GetEvent), new { eventId = newEvent.EventId },newEvent);
     }
 
     [HttpPut("{eventId:Guid}")]
@@ -45,7 +51,7 @@ public class EventController(IEventService eventService) : ControllerBase
 
         var result = await eventService.UpdateEvent(eventId, dto.Title, dto.Description, dto.StartAt, dto.EndAt);
 
-        return Ok(EventResponseDto.FromEntity(result));
+        return Ok(result);
     }
 
     [HttpDelete("{eventId:Guid}")]

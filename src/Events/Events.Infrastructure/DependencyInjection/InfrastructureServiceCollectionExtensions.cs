@@ -1,4 +1,5 @@
 ﻿using Events.Application.Abstractions;
+using Events.Application.Caching;
 using Events.Infrastructure.Caching;
 using Events.Infrastructure.Messaging;
 using Events.Infrastructure.Persistence;
@@ -29,7 +30,8 @@ public static class InfrastructureServiceCollectionExtensions
             options.AbortOnConnectFail = false;
             return ConnectionMultiplexer.Connect(options);                                                                                 
         });      
-        services.AddSingleton<ICacheService, RedisCacheService>();                                                                         
+        services.AddSingleton<ICacheService, RedisCacheService>();        
+        services.Configure<CacheOptions>(configuration.GetSection("Cache"));     
         return services;
     }
 }

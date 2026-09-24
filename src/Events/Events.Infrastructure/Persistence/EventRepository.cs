@@ -11,7 +11,8 @@ public class EventRepository(EventDbContext context) : IEventRepository
         return await context.Events.FindAsync(id).AsTask();
     }
 
-    public async Task<(List<Event> Items, int TotalCount)> GetPagedAsync(string? title, DateTime? from, DateTime? to, int page, int pageSize)
+    public async Task<(List<Event> Items, int TotalCount)> GetPagedAsync(string? title, DateTime? from, DateTime? to,
+        int page, int pageSize)
     {
         var query = context.Events.AsQueryable();
         if (!string.IsNullOrWhiteSpace(title))
@@ -41,4 +42,13 @@ public class EventRepository(EventDbContext context) : IEventRepository
         context.Events.Remove(@event);
         await context.SaveChangesAsync();
     }
-}
+
+    public async Task<List<Event>> GetTopAsync(int count)
+    {
+        return await context.Events
+            .OrderByDescending(e => (double)(e.TotalSeats - e.AvailableSeats) / e.TotalSeats)
+            .Take(count)
+            .ToListAsync();
+
+    }
+}      
