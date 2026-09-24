@@ -22,7 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\EventApi.Infrastructure\EventApi.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Users\Users.Infrastructure\Users.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Events\Events.Infrastructure\Events.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Bookings\Bookings.Infrastructure\Bookings.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
