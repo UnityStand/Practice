@@ -1,5 +1,7 @@
 using Events.Application.DependencyInjection;
 using Events.Application.Abstractions;
+using Events.Application.Caching;
+using Events.Tests.Fakes;
 using Events.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,9 @@ public sealed class TestServices : IDisposable
     private readonly ServiceProvider _provider;
     private readonly List<IServiceScope> _scopes = [];
 
+    // Singleton, как RedisCacheService: тест видит, что осталось в кеше после операций
+    public FakeCacheService Cache { get; } = new();
+
     public TestServices()
     {
         var dbName = Guid.NewGuid().ToString();
@@ -22,6 +27,12 @@ public sealed class TestServices : IDisposable
         services.AddDbContext<EventDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IProcessedBookingRepository, ProcessedBookingRepository>();
+        services.AddSingleton<ICacheService>(Cache);
+        services.Configure<CacheOptions>(o =>
+        {
+            o.EventTtl = TimeSpan.FromMinutes(5);
+            o.TopEventsTtl = TimeSpan.FromMinutes(1);
+        });
         services.AddApplicationServices();
         _provider = services.BuildServiceProvider();
     }

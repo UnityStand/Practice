@@ -1,5 +1,7 @@
 using EventApi.Contracts;
 using Events.Application.Abstractions;
+using Events.Application.Caching;
+using Events.Application.Services;
 using Events.Domain.Entities;
 using Events.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -94,6 +96,30 @@ public class BookingConfirmedHandlerTests : IDisposable
         await Handle(Message(Guid.NewGuid()));
 
         Assert.Equal(0, await ProcessedCount());
+    }
+
+    [Fact]
+    public async Task Handle_InvalidatesEventCache_AfterReservingSeats()
+    {
+        var eventId = await CreateEvent(totalSeats: 5);
+        await _services.Create<IEventService>().GetEventById(eventId); // прогреваем кеш: 5 свободных мест
+
+        await Handle(Message(eventId));
+
+        Assert.False(_services.Cache.Contains(CacheKeys.Event(eventId)));
+        Assert.Equal(4, (await _services.Create<IEventService>().GetEventById(eventId)).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task Handle_KeepsEventCache_WhenNotEnoughSeats()
+    {
+        var eventId = await CreateEvent(totalSeats: 1);
+        await Handle(Message(eventId));
+        await _services.Create<IEventService>().GetEventById(eventId);
+
+        await Handle(Message(eventId)); // мест нет, данные не меняются
+
+        Assert.True(_services.Cache.Contains(CacheKeys.Event(eventId)));
     }
 
     [Fact]
