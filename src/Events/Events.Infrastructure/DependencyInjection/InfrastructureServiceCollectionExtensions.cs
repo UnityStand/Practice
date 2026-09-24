@@ -28,6 +28,8 @@ public static class InfrastructureServiceCollectionExtensions
             var redis = sp.GetRequiredService<IOptions<RedisOptions>>().Value;                                                             
             var options = ConfigurationOptions.Parse(redis.ConnectionString);  
             options.AbortOnConnectFail = false;
+            // Без соединения команда сразу падает (кеш-промах), а не ждёт в очереди до AsyncTimeout
+            options.BacklogPolicy = BacklogPolicy.FailFast;
             return ConnectionMultiplexer.Connect(options);                                                                                 
         });      
         services.AddSingleton<ICacheService, RedisCacheService>();        

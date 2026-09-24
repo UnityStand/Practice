@@ -57,6 +57,8 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: eventapi-redis
+    # Кеш без персистентности: после рестарта Redis пуст и не воскрешает ключи, устаревшие за время простоя
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"   # для dotnet run на хосте (localhost:6379)
     healthcheck:
