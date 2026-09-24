@@ -29,6 +29,7 @@ public static class InfrastructureServiceCollectionExtensions
             options.AbortOnConnectFail = false;
             return ConnectionMultiplexer.Connect(options);                                                                                 
         });      
+        services.AddSingleton<ICacheService, RedisCacheService>();                                                                         
         return services;
     }
 }
