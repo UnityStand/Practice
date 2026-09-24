@@ -1,5 +1,6 @@
 ﻿using EventApi.Contracts;
 using Events.Application.Abstractions;
+using Events.Application.Caching;
 using Events.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -8,7 +9,8 @@ namespace Events.Application.Messaging;
 public class BookingConfirmedHandler(
     IEventRepository eventRepository,
     ILogger<BookingConfirmedHandler>  logger,
-    IProcessedBookingRepository processedBookingRepository) : IBookingConfirmedHandler
+    IProcessedBookingRepository processedBookingRepository,
+    ICacheService cache) : IBookingConfirmedHandler
 {
     public async Task HandleAsync(BookingConfirmed message)
     {
@@ -35,6 +37,7 @@ public class BookingConfirmedHandler(
 
         processedBookingRepository.Add(ProcessedBooking.Create(message.BookingId, @event.Id, DateTime.UtcNow));
         await eventRepository.UpdateAsync(@event);
+        await cache.DeleteAsync(CacheKeys.Event(@event.Id));
         logger.LogInformation("Booking {BookingId} confirmed for Event {EventId}", message.BookingId, message.EventId);
     }
 }
