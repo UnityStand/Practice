@@ -10,4 +10,5 @@ public interface IEventRepository
     Task AddAsync(Event @event);
     Task UpdateAsync(Event @event);
     Task RemoveAsync(Event @event);
+    Task<List<Event>> GetTopAsync(int count);
 }

@@ -1,6 +1,6 @@
-# Вся система: PostgreSQL, Kafka и три сервиса.
+# Вся система: PostgreSQL, Kafka, Redis и три сервиса.
 # Запуск из корня репозитория:  docker compose up --build -d
-# Только инфраструктура (для dotnet run):  docker compose up -d postgres kafka
+# Только инфраструктура (для dotnet run):  docker compose up -d postgres kafka redis
 # Остановка:  docker compose down        (данные БД сохраняются в томе eventapi_pgdata)
 
 # Общие настройки JWT — одинаковые для всех сервисов, иначе токен Users не пройдёт проверку в Events/Bookings
@@ -54,6 +54,19 @@ services:
       timeout: 10s
       retries: 10
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: eventapi-redis
+    # Кеш без персистентности: после рестарта Redis пуст и не воскрешает ключи, устаревшие за время простоя
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"   # для dotnet run на хосте (localhost:6379)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   users:
     build:
       context: .
@@ -82,11 +95,14 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=events_db;Username=postgres;Password=postgres"
       Kafka__BootstrapServers: "kafka:29092"
       Kafka__ConsumerGroup: "events-service"
+      Redis__ConnectionString: "redis:6379"   # имя контейнера, а не localhost
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_started   # Redis не обязателен для старта: без него кеш деградирует до промахов
 
   bookings:
     build:

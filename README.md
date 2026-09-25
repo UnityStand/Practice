@@ -122,7 +122,7 @@ public sealed record BookingConfirmed(Guid BookingId, Guid EventId, Guid UserId,
 git clone git@github.com:UnityStand/Practice.git
 cd Practice
 docker compose up --build -d
-docker compose ps            # 5 контейнеров: postgres, kafka (healthy), users, events, bookings
+docker compose ps            # 6 контейнеров: postgres, kafka, redis (healthy), users, events, bookings
 ```
 
 | Swagger | URL |
@@ -140,7 +140,7 @@ docker compose ps            # 5 контейнеров: postgres, kafka (health
 Нужен .NET SDK 10.0.
 
 ```bash
-docker compose up -d postgres kafka
+docker compose up -d postgres kafka redis
 dotnet build Practice.sln
 dotnet run --project src/Users/Users.Api        # http://localhost:5001
 dotnet run --project src/Events/Events.Api      # http://localhost:5002
@@ -161,6 +161,8 @@ dotnet run --project src/Bookings/Bookings.Api  # http://localhost:5003
 | `Kafka:BootstrapServers` | | ✓ | ✓ | `localhost:9092` | `kafka:29092` |
 | `Kafka:ConsumerGroup` | | ✓ | | `events-service` | `events-service` |
 | `BookingSettings:MaxActiveBookingsPerUser` | | | ✓ | `10` | — |
+| `Redis:ConnectionString` | | ✓ | | `localhost:6379` | `redis:6379` |
+| `Cache:EventTtl` / `Cache:TopEventsTtl` | | ✓ | | `00:05:00` / `00:01:00` | — |
 
 `Jwt:Secret` в репозитории — учебное значение. В продакшене секрет хранится вне git (переменные окружения или секрет-менеджер).
 
@@ -250,6 +252,61 @@ docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server lo
 - **Потеря сообщения при долгой недоступности Kafka.** Статус сохраняется до публикации. Если брокер недоступен дольше `message.timeout.ms` (5 минут по умолчанию), бронь останется `Confirmed` без сообщения. Надёжное решение — паттерн **Transactional Outbox**: сообщение пишется в таблицу `booking_db` в той же транзакции, а отдельный процесс пересылает его в Kafka. Благодаря абстракции `IBookingEventPublisher` и идемпотентному подписчику Outbox можно добавить без изменений в Events.
 - В Docker сервисы запускаются с `ASPNETCORE_ENVIRONMENT=Development`, чтобы был доступен Swagger. Для продакшена это нужно убрать.
 
+## Кеширование (Redis)
+
+Events кеширует два самых частых запроса на чтение. Redis спрятан за интерфейсом `ICacheService` (`Events.Application/Abstractions`), реализация `RedisCacheService` лежит в `Events.Infrastructure/Caching`. Application не зависит от StackExchange.Redis. `IConnectionMultiplexer` регистрируется в DI как singleton: соединение тяжёлое и потокобезопасное, поэтому создаётся один раз на всё приложение.
+
+### Что кешируется
+
+| Ключ | Данные | TTL | Обновление |
+|---|---|---|---|
+| `event:{id}` | `EventResponseDto` для `GET /events/{id}` | 5 минут (`Cache:EventTtl`) | инвалидация при записи + TTL |
+| `events:top10` | 10 событий с наибольшей долей проданных мест, `GET /events/top` | 1 минута (`Cache:TopEventsTtl`) | только TTL |
+
+Все ключи собраны в `CacheKeys`, а TTL задаются в секции `Cache` файла `appsettings.json` (класс `CacheOptions`). В кеш кладётся DTO, а не доменная сущность `Event`: у сущности приватный конструктор и сеттеры, и JSON-сериализатор не смог бы её восстановить.
+
+### Паттерн Cache-Aside
+
+1. Сервис ищет значение в кеше по ключу.
+2. **Попадание**: значение сразу возвращается, база данных не вызывается.
+3. **Промах**: данные читаются из базы, кладутся в кеш с TTL и возвращаются клиенту.
+
+Кеш заполняется только на чтении и только в одном месте для каждого ключа (`EventService.GetEventById` и `EventService.GetTopEvents`).
+
+### Почему такие TTL
+
+- **`event:{id}` — 5 минут.** Карточку события запрашивают часто, а меняется она редко. Устаревание здесь заметно (название, даты, свободные места), поэтому ключ явно инвалидируется при каждом изменении. TTL служит страховкой на случай изменений в обход сервиса (например, правка базы вручную) и не даёт кешу хранить редко запрашиваемые события вечно.
+- **`events:top10` — 1 минута.** Это рейтинговый агрегат: пересчитывать его после каждого бронирования было бы избыточно, а небольшое отставание рейтинга некритично. Короткий TTL ограничивает устаревание минутой и при этом снимает с базы тяжёлый запрос с сортировкой по всей таблице.
+
+### Изменение данных
+
+Для `event:{id}` выбрана **инвалидация при записи**: после изменения ключ удаляется, и следующий GET прогревает кеш из базы.
+
+| Источник изменения | Где инвалидируется |
+|---|---|
+| `PUT /events/{id}` | `EventService.UpdateEvent` |
+| `DELETE /events/{id}` | `EventService.DeleteEvent` |
+| сообщение Kafka `BookingConfirmed` (меняет `AvailableSeats`) | `BookingConfirmedHandler` |
+
+**Порядок операций: сначала база, потом кеш.** Если процесс оборвётся между шагами, база уже будет в актуальном состоянии, а устаревший ключ исчезнет не позже чем через TTL. При обратном порядке параллельный GET мог бы успеть прочитать из базы старые данные и снова положить их в кеш на весь TTL.
+
+**Почему инвалидация, а не обновление при записи.** Удалить ключ проще и надёжнее: объект для кеша собирается только в одном месте, и нет риска записать в кеш данные в другом формате. Обработчику Kafka не нужно знать, как выглядит DTO. Повторная доставка того же сообщения безопасна: обработчик идемпотентен (`ProcessedBookings`), а повторное удаление ключа ничего не ломает.
+
+Кеш `events:top10` явно не инвалидируется и обновляется по TTL. Поэтому после бронирования или изменения события рейтинг может отставать до одной минуты.
+
+### Если Redis недоступен
+
+Кеш деградирует без ошибки для клиента:
+
+- соединение создаётся с `AbortOnConnectFail = false`, поэтому сервис стартует и без Redis, а подключение восстанавливается в фоне;
+- `BacklogPolicy = FailFast`: без соединения команда падает сразу. По умолчанию клиент держит команды в очереди до `AsyncTimeout` (5 с), и без Redis `GET /events/top` отвечал за ~12 с (5 с на чтение + 5 с на запись); с `FailFast` отвечает за миллисекунды;
+- `RedisCacheService` перехватывает `RedisConnectionException` и `RedisTimeoutException` и пишет предупреждение в лог;
+- `GetAsync` при сбое возвращает `null`, то есть работает как промах: запрос уходит в базу. `SetAsync` и `DeleteAsync` просто пропускаются.
+
+Если Redis был недоступен в момент изменения события и ключ не удалился, устаревшее значение проживёт не дольше `EventTtl`.
+
+Redis в `docker-compose.yml` запущен без персистентности (`--save "" --appendonly no`): кеш всегда можно восстановить из базы, а снимок на диске после рестарта вернул бы ключи, которые устарели за время простоя.
+
 ## Миграции EF Core
 
 У каждого сервиса свой `DbContext` и свои миграции в `src/<Service>/<Service>.Infrastructure/Persistence/Migrations`:
@@ -274,7 +331,7 @@ dotnet test Practice.sln
 | Проект | Что проверяет |
 |---|---|
 | `Users.Tests` | регистрация и вход, хеширование пароля; токен Users проходит проверку с параметрами Events и Bookings и отклоняется при другом секрете |
-| `Events.Tests` | CRUD и фильтры `EventService`, запрет удаления при учтённых бронях; `BookingConfirmedHandler`: списание мест, **идемпотентность** повторного сообщения, пропуск при отсутствии события или мест |
+| `Events.Tests` | CRUD и фильтры `EventService`, запрет удаления при учтённых бронях; `BookingConfirmedHandler`: списание мест, **идемпотентность** повторного сообщения, пропуск при отсутствии события или мест; **кеширование** (`EventServiceCachingTests`, заглушки `FakeCacheService` и `StubEventRepository`): попадание не вызывает репозиторий, промах читает репозиторий и кладёт результат в кеш с нужным TTL, `PUT`/`DELETE` и `BookingConfirmed` инвалидируют `event:{id}`, а `events:top10` не трогают |
 | `Bookings.Tests` | лимит активных броней (в том числе при конкурентных запросах), права на отмену; `BookingBackgroundService` публикует `BookingConfirmed` **только после** сохранения статуса в БД (фейковый издатель читает статус из базы в момент публикации) |
 | `Integration.Tests` | репозитории всех трёх сервисов на реальном PostgreSQL (Testcontainers): миграции каждого сервиса создают **только свои** таблицы, `ProcessedBookings` + места сохраняются одной транзакцией, дубль `BookingId` отклоняется первичным ключом |
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Events.Application.DTOs;
 using Events.Application.Services;
 using Events.Domain.Entities;
 using Events.Domain.Exceptions;
@@ -14,7 +15,7 @@ public class EventServiceTests : IDisposable
 
     private IEventService Service() => _services.Create<IEventService>();
 
-    private static Task<Event> CreateTestEvent(
+    private static Task<EventResponseDto> CreateTestEvent(
         IEventService service,
         string title = "Test Event",
         DateTime? startAt = null,
@@ -22,7 +23,7 @@ public class EventServiceTests : IDisposable
         int totalSeats = 10) =>
         service.CreateEvent(title, null, startAt ?? DateTime.UtcNow, endAt ?? DateTime.UtcNow.AddHours(2), totalSeats);
 
-    private static async Task<List<Event>> SampleEvents(IEventService service) =>
+    private static async Task<List<EventResponseDto>> SampleEvents(IEventService service) =>
     [
         await CreateTestEvent(service, title: "Null Meeting", startAt: new DateTime(2026, 1, 10), endAt: new DateTime(2026, 1, 10, 11, 0, 0)),
         await CreateTestEvent(service, title: "Conference", startAt: new DateTime(2026, 2, 1), endAt: new DateTime(2026, 2, 3)),
@@ -47,8 +48,8 @@ public class EventServiceTests : IDisposable
         var first = await CreateTestEvent(service, title: "First Event");
         var second = await CreateTestEvent(service, title: "Second Event");
 
-        Assert.NotEqual(Guid.Empty, first.Id);
-        Assert.NotEqual(first.Id, second.Id);
+        Assert.NotEqual(Guid.Empty, first.EventId);
+        Assert.NotEqual(first.EventId, second.EventId);
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public class EventServiceTests : IDisposable
     {
         var events = await SampleEvents(Service());
 
-        var result = await Service().GetEventById(events[0].Id);
+        var result = await Service().GetEventById(events[0].EventId);
 
         Assert.Equal("Null Meeting", result.Title);
     }
@@ -153,9 +154,9 @@ public class EventServiceTests : IDisposable
         var created = await CreateTestEvent(Service(), title: "Original Title");
 
         var updated = await Service().UpdateEvent(
-            created.Id, "Updated Title", "Updated description", new DateTime(2026, 7, 1), new DateTime(2026, 7, 2));
+            created.EventId, "Updated Title", "Updated description", new DateTime(2026, 7, 1), new DateTime(2026, 7, 2));
 
-        Assert.Equal(created.Id, updated.Id);
+        Assert.Equal(created.EventId, updated.EventId);
         Assert.Equal("Updated Title", updated.Title);
         Assert.Equal("Updated description", updated.Description);
     }
@@ -172,8 +173,8 @@ public class EventServiceTests : IDisposable
     {
         var created = await CreateTestEvent(Service());
 
-        Assert.True(await Service().DeleteEvent(created.Id));
-        await Assert.ThrowsAsync<NotFoundException>(() => Service().GetEventById(created.Id));
+        Assert.True(await Service().DeleteEvent(created.EventId));
+        await Assert.ThrowsAsync<NotFoundException>(() => Service().GetEventById(created.EventId));
     }
 
     [Fact]
@@ -186,9 +187,9 @@ public class EventServiceTests : IDisposable
     public async Task DeleteEvent_Throws_WhenEventHasProcessedBookings()
     {
         var created = await CreateTestEvent(Service());
-        await MarkBookingProcessed(created.Id);
+        await MarkBookingProcessed(created.EventId);
 
-        await Assert.ThrowsAsync<EventHasBookingsException>(() => Service().DeleteEvent(created.Id));
+        await Assert.ThrowsAsync<EventHasBookingsException>(() => Service().DeleteEvent(created.EventId));
     }
 
     [Fact]
@@ -196,8 +197,8 @@ public class EventServiceTests : IDisposable
     {
         var target = await CreateTestEvent(Service(), title: "Target");
         var other = await CreateTestEvent(Service(), title: "Other");
-        await MarkBookingProcessed(other.Id);
+        await MarkBookingProcessed(other.EventId);
 
-        Assert.True(await Service().DeleteEvent(target.Id));
+        Assert.True(await Service().DeleteEvent(target.EventId));
     }
 }
