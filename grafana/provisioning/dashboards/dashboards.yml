@@ -1,0 +1,9 @@
+# Grafana загружает все JSON-дашборды из папки /etc/grafana/dashboards
+apiVersion: 1
+
+providers:
+  - name: eventapi
+    type: file
+    disableDeletion: true
+    options:
+      path: /etc/grafana/dashboards
