@@ -1,4 +1,4 @@
-# Вся система: PostgreSQL, Kafka, Redis и три сервиса.
+# Вся система: PostgreSQL, Kafka, Redis, три сервиса и мониторинг (Prometheus, Jaeger, Grafana).
 # Запуск из корня репозитория:  docker compose up --build -d
 # Только инфраструктура (для dotnet run):  docker compose up -d postgres kafka redis
 # Остановка:  docker compose down        (данные БД сохраняются в томе eventapi_pgdata)
@@ -77,6 +77,7 @@ services:
     environment:
       <<: *jwt
       ASPNETCORE_ENVIRONMENT: Development   # Swagger включён только в Development
+      Otlp__Endpoint: "http://jaeger:4317"   # внутри сети Docker Jaeger доступен по имени контейнера
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=user_db;Username=postgres;Password=postgres"
     depends_on:
       postgres:
@@ -92,6 +93,7 @@ services:
     environment:
       <<: *jwt
       ASPNETCORE_ENVIRONMENT: Development
+      Otlp__Endpoint: "http://jaeger:4317"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=events_db;Username=postgres;Password=postgres"
       Kafka__BootstrapServers: "kafka:29092"
       Kafka__ConsumerGroup: "events-service"
@@ -114,6 +116,7 @@ services:
     environment:
       <<: *jwt
       ASPNETCORE_ENVIRONMENT: Development
+      Otlp__Endpoint: "http://jaeger:4317"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=booking_db;Username=postgres;Password=postgres"
       Kafka__BootstrapServers: "kafka:29092"
     depends_on:
@@ -122,5 +125,35 @@ services:
       kafka:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: eventapi-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"   # UI: http://localhost:9090
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: eventapi-jaeger
+    ports:
+      - "16686:16686"   # UI: http://localhost:16686
+      - "4317:4317"     # OTLP gRPC — сюда сервисы отправляют трейсы
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: eventapi-grafana
+    ports:
+      - "3000:3000"   # UI: http://localhost:3000 (admin / admin)
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   eventapi_pgdata:
+  grafana-data:

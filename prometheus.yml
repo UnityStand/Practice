@@ -1,0 +1,19 @@
+# Откуда Prometheus забирает метрики (pull). Имена — container_name из docker-compose.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: users-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["users-service:8080"]
+
+  - job_name: events-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["events-service:8080"]
+
+  - job_name: bookings-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["bookings-service:8080"]
