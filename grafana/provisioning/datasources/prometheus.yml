@@ -1,0 +1,11 @@
+# Источник данных создаётся при старте Grafana — вручную в UI добавлять не нужно
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus          # на этот uid ссылаются панели дашборда
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090   # имя контейнера, не localhost
+    isDefault: true
+    editable: false

@@ -1,4 +1,5 @@
 using System.Text;
+using Bookings.Api.DependencyInjection;
 using Bookings.Api.Exceptions;
 using Bookings.Application.DependencyInjection;
 using Bookings.Application.Options;
@@ -10,6 +11,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddObservability("bookings-service");
 
 // Add services to the container.
 
@@ -78,6 +81,7 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();
 

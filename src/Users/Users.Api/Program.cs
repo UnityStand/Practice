@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Users.Api.DependencyInjection;
 using Users.Api.Exceptions;
 using Users.Infrastructure.DependencyInjection;
 using Users.Infrastructure.Persistence;
 using Users.Application.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddObservability("users-service");
 
 // Add services to the container.
 builder.Services.AddControllers()
@@ -30,6 +33,7 @@ using (var scope = app.Services.CreateScope())
 }
 app.UseExceptionHandler();
 app.MapControllers();
+app.MapPrometheusScrapingEndpoint();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
