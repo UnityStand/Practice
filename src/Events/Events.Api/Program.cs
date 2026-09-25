@@ -1,4 +1,5 @@
 using System.Text;
+using Events.Api.DependencyInjection;
 using Events.Api.Exceptions;
 using Events.Application.DependencyInjection;
 using Events.Infrastructure.DependencyInjection;
@@ -9,6 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddObservability("events-service");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -77,5 +80,6 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();
