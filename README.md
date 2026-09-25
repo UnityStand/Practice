@@ -10,7 +10,9 @@
 | **Events** | CRUD событий, учёт свободных мест | `5002` | `events_db` | **подписчик** `booking-confirm` |
 | **Bookings** | создание, подтверждение и отмена броней | `5003` | `booking_db` | **издатель** `booking-confirm` |
 
-Инфраструктура: PostgreSQL 16 (порт `5432`, один сервер, три отдельные базы) и Apache Kafka 3.9 в режиме KRaft (порт `9092` для хоста, `kafka:29092` внутри Docker).
+Инфраструктура: PostgreSQL 16 (порт `5432`, один сервер, три отдельные базы), Apache Kafka 3.9 в режиме KRaft (порт `9092` для хоста, `kafka:29092` внутри Docker) и Redis 7.2 (кеш Events).
+
+Мониторинг: Prometheus (метрики), Jaeger (трейсы) и Grafana (дашборды). Подробнее — в разделе [Наблюдаемость](#наблюдаемость).
 
 ```
                  JWT (общие Secret / Issuer / Audience)
@@ -40,7 +42,9 @@ src/
 tests/
   Users.Tests | Events.Tests | Bookings.Tests   юнит-тесты (EF InMemory, без Kafka)
   Integration.Tests                             репозитории и миграции на реальном PostgreSQL (Testcontainers)
-docker-compose.yml                              PostgreSQL + Kafka + три сервиса
+docker-compose.yml                              PostgreSQL + Kafka + Redis + три сервиса + Prometheus/Jaeger/Grafana
+prometheus.yml                                  откуда Prometheus собирает метрики
+grafana/                                        provisioning Grafana: datasource + JSON дашборда
 ```
 
 Каждый сервис построен по чистой архитектуре. Зависимости направлены внутрь, к `Domain`, и закреплены через `<ProjectReference>`:
@@ -122,7 +126,7 @@ public sealed record BookingConfirmed(Guid BookingId, Guid EventId, Guid UserId,
 git clone git@github.com:UnityStand/Practice.git
 cd Practice
 docker compose up --build -d
-docker compose ps            # 6 контейнеров: postgres, kafka, redis (healthy), users, events, bookings
+docker compose ps            # 9 контейнеров: postgres, kafka, redis, users, events, bookings, prometheus, jaeger, grafana
 ```
 
 | Swagger | URL |
@@ -131,7 +135,9 @@ docker compose ps            # 6 контейнеров: postgres, kafka, redis 
 | Events | http://localhost:5002/swagger |
 | Bookings | http://localhost:5003/swagger |
 
-Логи: `docker compose logs -f events`. Остановка: `docker compose down`. Данные PostgreSQL сохраняются в томе `eventapi_pgdata`; `docker compose down -v` удалит и их.
+UI мониторинга: Grafana http://localhost:3000, Jaeger http://localhost:16686, Prometheus http://localhost:9090 (см. [Наблюдаемость](#наблюдаемость)).
+
+Логи (JSON): `docker compose logs -f events`. Остановка: `docker compose down`. Данные PostgreSQL сохраняются в томе `eventapi_pgdata`; `docker compose down -v` удалит и их.
 
 Каждый сервис собирается своим **многоступенчатым** Dockerfile (`src/<Service>/<Service>.Api/Dockerfile`): стадия `sdk:10.0` делает restore и publish, а в финальный образ `aspnet:10.0` попадают только готовые сборки. Контекст сборки — корень репозитория, потому что Events и Bookings собираются вместе с `EventApi.Contracts`. Внутри контейнера сервисы слушают порт `8080` и работают от непривилегированного пользователя.
 
@@ -140,7 +146,7 @@ docker compose ps            # 6 контейнеров: postgres, kafka, redis 
 Нужен .NET SDK 10.0.
 
 ```bash
-docker compose up -d postgres kafka redis
+docker compose up -d postgres kafka redis jaeger   # jaeger — чтобы трейсы с localhost:4317 было куда отправлять
 dotnet build Practice.sln
 dotnet run --project src/Users/Users.Api        # http://localhost:5001
 dotnet run --project src/Events/Events.Api      # http://localhost:5002
@@ -163,6 +169,8 @@ dotnet run --project src/Bookings/Bookings.Api  # http://localhost:5003
 | `BookingSettings:MaxActiveBookingsPerUser` | | | ✓ | `10` | — |
 | `Redis:ConnectionString` | | ✓ | | `localhost:6379` | `redis:6379` |
 | `Cache:EventTtl` / `Cache:TopEventsTtl` | | ✓ | | `00:05:00` / `00:01:00` | — |
+| `Otlp:Endpoint` | ✓ | ✓ | ✓ | `http://localhost:4317` | `http://jaeger:4317` |
+| `Serilog:MinimumLevel` | ✓ | ✓ | ✓ | `Information`, `Microsoft`/`System` — `Warning` | — |
 
 `Jwt:Secret` в репозитории — учебное значение. В продакшене секрет хранится вне git (переменные окружения или секрет-менеджер).
 
@@ -306,6 +314,96 @@ Events кеширует два самых частых запроса на чт�
 Если Redis был недоступен в момент изменения события и ключ не удалился, устаревшее значение проживёт не дольше `EventTtl`.
 
 Redis в `docker-compose.yml` запущен без персистентности (`--save "" --appendonly no`): кеш всегда можно восстановить из базы, а снимок на диске после рестарта вернул бы ключи, которые устарели за время простоя.
+
+## Наблюдаемость
+
+Все три сервиса отдают три сигнала: **метрики**, **трейсы** и **структурированные логи**. Метрики и трейсы собирает OpenTelemetry SDK, логи пишет Serilog.
+
+| Инструмент | Для чего | UI | Как получает данные |
+|---|---|---|---|
+| **Prometheus** `v2.51.0` | хранит метрики | http://localhost:9090 | сам опрашивает `/metrics` каждого сервиса раз в 15 с (pull) |
+| **Jaeger** `1.56` | хранит и показывает трейсы | http://localhost:16686 | сервисы отправляют трейсы по OTLP gRPC на порт `4317` (push) |
+| **Grafana** `10.4.2` | дашборды поверх Prometheus | http://localhost:3000 (`admin` / `admin`) | читает Prometheus по адресу `http://prometheus:9090` |
+
+### Запуск стека мониторинга
+
+Мониторинг входит в общий `docker-compose.yml` и поднимается вместе с сервисами:
+
+```bash
+docker compose up --build -d
+```
+
+Только мониторинг, если сервисы уже запущены: `docker compose up -d prometheus jaeger grafana`.
+
+Проверка:
+
+1. `curl http://localhost:5002/metrics` — метрики сервиса в формате Prometheus (то же для `5001` и `5003`).
+2. Prometheus → **Status → Targets** — `users-service`, `events-service`, `bookings-service` в состоянии **UP**.
+3. Jaeger → Service `events-service` → **Find Traces** — трейс `GET events` со спанами запросов EF Core к `events_db`.
+4. Grafana → **Dashboards → EventApi — Observability**.
+
+### Настройка в коде
+
+Вся настройка собрана в одном методе расширения `AddObservability` (`src/<Service>/<Service>.Api/DependencyInjection/ObservabilityExtensions.cs`). В `Program.cs` остаются две строки:
+
+```csharp
+builder.AddObservability("events-service");   // имя сервиса в Jaeger и метка target_info в Prometheus
+// ...
+app.MapPrometheusScrapingEndpoint();          // GET /metrics
+```
+
+| Сигнал | Что подключено | Куда уходит |
+|---|---|---|
+| Трейсы | входящие HTTP (ASP.NET Core), исходящие HTTP (`HttpClient`), запросы EF Core | Jaeger по OTLP (`Otlp:Endpoint`) |
+| Метрики | ASP.NET Core (latency, RPS, активные запросы), рантайм .NET (GC, пул потоков, память, исключения) | эндпоинт `/metrics` для Prometheus |
+| Логи | Serilog, `CompactJsonFormatter` | stdout контейнера, одна строка — один JSON-объект |
+
+Пакеты (в каждом `*.Api`): `OpenTelemetry.Extensions.Hosting`, `OpenTelemetry.Instrumentation.AspNetCore` / `Http` / `Runtime` / `EntityFrameworkCore`, `OpenTelemetry.Exporter.Prometheus.AspNetCore`, `OpenTelemetry.Exporter.OpenTelemetryProtocol`, `Serilog.AspNetCore`, `Serilog.Formatting.Compact`. Экспортёр Prometheus и инструментация EF Core пока выходят только в beta-версиях.
+
+### Структурированные логи
+
+Пример строки лога:
+
+```json
+{"@t":"2026-09-25T17:00:27.76Z","@mt":"Request starting {Protocol} {Method} ...","@tr":"d1f7433...","@sp":"4862c91...","Method":"GET","SourceContext":"Microsoft.AspNetCore.Hosting.Diagnostics"}
+```
+
+- `@t` — время, `@l` — уровень (не выводится для `Information`), `@mt` — шаблон сообщения, `SourceContext` — источник, параметры шаблона — отдельные поля;
+- `@tr` / `@sp` — TraceId и SpanId: по TraceId из лога запрос находится в Jaeger.
+
+Уровни задаются в секции `Serilog` файла `appsettings.json`. Шумные логи `Microsoft.*` и `System.*` понижены до `Warning`. Для отладки уровень можно поднять без правки файла, через переменную окружения `Serilog__MinimumLevel__Override__Microsoft=Information`.
+
+### Grafana: provisioning
+
+Источник данных и дашборд подключаются из файлов при старте Grafana, вручную в UI ничего настраивать не нужно:
+
+```
+grafana/
+  provisioning/datasources/prometheus.yml    источник данных Prometheus (uid: prometheus)
+  provisioning/dashboards/dashboards.yml     загрузить все JSON из /etc/grafana/dashboards
+  dashboards/eventapi-observability.json     дашборд «EventApi — Observability»
+```
+
+Панели дашборда (переменная **Service** фильтрует по сервису):
+
+| Раздел | Панель | Запрос (упрощённо) |
+|---|---|---|
+| HTTP | Latency p50 / p95 / p99 | `histogram_quantile(0.95, sum by (le, job) (rate(http_server_request_duration_seconds_bucket[…])))` |
+| HTTP | Throughput (RPS) | `sum by (job) (rate(http_server_request_duration_seconds_count[…]))` |
+| HTTP | Active requests | `sum by (job) (http_server_active_requests)` |
+| HTTP | Error rate (5xx, %) | доля `http_response_status_code=~"5.."` среди всех запросов |
+| .NET runtime | GC collections, GC heap size, Working set | `dotnet_gc_collections_total`, `dotnet_gc_last_collection_heap_size_bytes`, `dotnet_process_memory_working_set_bytes` |
+| .NET runtime | Thread pool threads / queue length, Exceptions | `dotnet_thread_pool_*`, `dotnet_exceptions_total` |
+
+HTTP-панели исключают `http_route="/metrics"`, иначе опросы Prometheus считались бы пользовательской нагрузкой.
+
+Изменения дашборда, сделанные в UI, в файл не попадают. Чтобы их сохранить, экспортируйте дашборд (**Share → Export**) и замените `grafana/dashboards/eventapi-observability.json`.
+
+### Ограничения
+
+- Prometheus опрашивает сервисы по именам контейнеров (`events-service:8080`). Сервисы, запущенные через `dotnet run` на хосте, он не видит; их метрики доступны только напрямую по `http://localhost:500x/metrics`.
+- Трейс не проходит через Kafka: бронирование в Bookings (`POST /events/{id}/book`) и обработка `BookingConfirmed` в Events попадают в разные трейсы. Чтобы связать их, нужно передавать контекст трейса в заголовках сообщения Kafka.
+- Эндпоинт `/metrics` открыт без аутентификации. В продакшене его закрывают сетью или отдельным портом.
 
 ## Миграции EF Core
 
